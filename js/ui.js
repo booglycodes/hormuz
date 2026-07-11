@@ -365,7 +365,7 @@ export class GameUI {
   }
 }
 
-// Card metadata for display, injected from the catalog at load (see main.js).
+// Card metadata for display, injected from the catalog at load (see game.js).
 export const CARD_META = {};
 export function registerCardMeta(catalog) {
   for (const c of catalog) CARD_META[c.id] = { name: c.name, text: c.text, target: c.target, deck: c.deck };

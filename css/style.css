@@ -39,6 +39,16 @@ body {
 .menu-mode { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
 .menu-mode h3 { margin: 0 0 6px; }
 .menu-mode p { color: var(--muted); font-size: 13px; min-height: 34px; }
+
+/* Online host/join columns */
+.online-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+.online-panel { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; }
+.online-panel h3 { margin: 0 0 6px; color: var(--gold); }
+.online-panel p { color: var(--muted); font-size: 13px; min-height: 48px; }
+.online-panel .btn { margin-top: auto; }
+
+/* Status bar (its own element so panel re-renders don't wipe it) */
+.statusbar { padding: 6px 14px; background: #0b141b; border-bottom: 1px solid var(--line); }
 .online-form label { display: block; font-size: 13px; margin: 8px 0; color: var(--muted); }
 .online-form input, .online-form select {
   width: 100%; margin-top: 4px; padding: 7px 9px; border-radius: 6px;

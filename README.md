@@ -10,8 +10,10 @@ zero-backend static web app in **vanilla JavaScript + HTML** (native ES modules,
   springing **surprise attacks** when a US ship transits them. Wins by running out the US clock,
   collapsing US popularity, or sinking the whole fleet.
 
-Play **local hot-seat** (one device, with a Swap Sides screen that hides each side's secrets) or
-**online peer-to-peer** over WebRTC via [Trystero](https://trystero.dev) — no server required.
+**Online two-player** over WebRTC via [Trystero](https://trystero.dev) — no server required. One
+player hosts and shares a room code; the other joins from another device. The menu (`index.html`)
+and the game (`game.html`) are separate pages; hosting/joining navigates to the game URL with the
+room in the query string, so a room link is shareable.
 
 ---
 
@@ -27,11 +29,14 @@ npm run serve       # → python3 -m http.server 8000
 
 Any static file server works (e.g. `npx serve`, `python3 -m http.server`, etc.).
 
-- **Hot-seat:** click *Start hot-seat game*. Pass the device when prompted.
-- **Online:** one player clicks *Host new room* (a room code is generated and shown in the header)
-  and picks their side; the other enters the same code and clicks *Join room*. Requires internet
-  access for Trystero's CDN and Nostr signaling relays. All game data is sent directly
-  peer-to-peer and end-to-end encrypted; only peer *discovery* uses the public relays.
+- **Host:** pick your side and click *Create room*. A room code appears in the header — share it
+  with your opponent.
+- **Join:** enter the room code your opponent shared and click *Join room*. You automatically play
+  the side the host didn't take.
+
+Online play requires internet access for Trystero's CDN and Nostr signaling relays. All game data
+is sent directly peer-to-peer and end-to-end encrypted; only peer *discovery* uses the public
+relays.
 
 ## Running the tests
 
@@ -105,9 +110,9 @@ the engine never imports DOM or transport code.
 | `js/view.js` | `projectView(state, side)` — the single concealment mechanism (hides opponent secrets). |
 | `js/util.js` | Portable `deepClone`. |
 | `js/ui.js` | SVG board renderer + interaction; renders a `PlayerView`, emits action intents. |
-| `js/hotseat.js` | Local pass-and-play controller + Swap Sides interstitial. |
 | `js/online.js` | Host-authoritative Trystero P2P adapter (host runs the engine; client is a thin view). |
-| `js/main.js` | Bootstrap, menu/mode selection, wiring. |
+| `js/menu.js` | Menu page (`index.html`) — host/join, navigates to the game URL. |
+| `js/game.js` | Game page (`game.html`) — reads room/side/mode from the URL and starts the session. |
 | `content/board.json` | The sample strait board (nodes, typed lanes, entry/exit/chokepoint). |
 | `content/config.json` | Balance knobs (oil target, fleet size, cargo, clock, budgets, popularity). |
 
