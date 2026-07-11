@@ -1,0 +1,68 @@
+{
+  "id": "sample-strait",
+  "name": "Sample Strait (v1)",
+  "nodes": [
+    { "id": "E1", "label": "West Entry A", "entry": true, "x": 40, "y": 80 },
+    { "id": "E2", "label": "West Entry B", "entry": true, "x": 40, "y": 200 },
+    { "id": "E3", "label": "West Entry C", "entry": true, "x": 40, "y": 320 },
+
+    { "id": "W1", "label": "West Approach 1", "placementEligible": true, "x": 140, "y": 60 },
+    { "id": "W2", "label": "West Approach 2", "placementEligible": true, "x": 140, "y": 160 },
+    { "id": "W3", "label": "West Approach 3", "placementEligible": true, "x": 140, "y": 280 },
+    { "id": "W4", "label": "West Approach 4", "placementEligible": true, "x": 240, "y": 100 },
+    { "id": "W5", "label": "West Approach 5", "placementEligible": true, "x": 240, "y": 220 },
+    { "id": "W6", "label": "West Approach 6", "placementEligible": true, "x": 240, "y": 320 },
+
+    { "id": "C1", "label": "North Channel", "chokepoint": true, "placementEligible": true, "x": 340, "y": 140 },
+    { "id": "C2", "label": "South Channel", "chokepoint": true, "placementEligible": true, "x": 340, "y": 280 },
+
+    { "id": "Ea1", "label": "East Basin 1", "placementEligible": true, "x": 440, "y": 80 },
+    { "id": "Ea2", "label": "East Basin 2", "placementEligible": true, "x": 440, "y": 160 },
+    { "id": "Ea3", "label": "East Basin 3", "placementEligible": true, "x": 440, "y": 260 },
+    { "id": "Ea4", "label": "East Basin 4", "placementEligible": true, "x": 440, "y": 340 },
+    { "id": "Ea5", "label": "East Basin 5", "placementEligible": true, "x": 540, "y": 120 },
+    { "id": "Ea6", "label": "East Basin 6", "placementEligible": true, "x": 540, "y": 300 },
+
+    { "id": "X1", "label": "East Exit A", "exit": true, "x": 640, "y": 80 },
+    { "id": "X2", "label": "East Exit B", "exit": true, "x": 640, "y": 300 },
+    { "id": "X3", "label": "East Exit C", "exit": true, "x": 640, "y": 360 }
+  ],
+  "edges": [
+    { "from": "E1", "to": "W1", "laneType": "open-sea", "cost": 1 },
+    { "from": "E2", "to": "W2", "laneType": "open-sea", "cost": 1 },
+    { "from": "E3", "to": "W3", "laneType": "open-sea", "cost": 1 },
+
+    { "from": "W1", "to": "W2", "laneType": "open-sea", "cost": 1 },
+    { "from": "W2", "to": "W3", "laneType": "open-sea", "cost": 1 },
+    { "from": "W1", "to": "W4", "laneType": "coastal", "cost": 1 },
+    { "from": "W2", "to": "W5", "laneType": "coastal", "cost": 1 },
+    { "from": "W3", "to": "W6", "laneType": "coastal", "cost": 1 },
+    { "from": "W3", "to": "W4", "laneType": "open-sea", "cost": 1 },
+    { "from": "W4", "to": "W5", "laneType": "open-sea", "cost": 1 },
+    { "from": "W5", "to": "W6", "laneType": "open-sea", "cost": 1 },
+
+    { "from": "W4", "to": "C1", "laneType": "narrow-channel", "cost": 2 },
+    { "from": "W5", "to": "C1", "laneType": "narrow-channel", "cost": 2 },
+    { "from": "W5", "to": "C2", "laneType": "narrow-channel", "cost": 2 },
+    { "from": "W6", "to": "C2", "laneType": "narrow-channel", "cost": 2 },
+
+    { "from": "C1", "to": "Ea1", "laneType": "narrow-channel", "cost": 2 },
+    { "from": "C1", "to": "Ea2", "laneType": "narrow-channel", "cost": 2 },
+    { "from": "C2", "to": "Ea3", "laneType": "narrow-channel", "cost": 2 },
+    { "from": "C2", "to": "Ea4", "laneType": "narrow-channel", "cost": 2 },
+
+    { "from": "Ea1", "to": "Ea2", "laneType": "coastal", "cost": 1 },
+    { "from": "Ea2", "to": "Ea3", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea3", "to": "Ea4", "laneType": "coastal", "cost": 1 },
+    { "from": "Ea1", "to": "Ea5", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea2", "to": "Ea5", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea3", "to": "Ea6", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea4", "to": "Ea6", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea5", "to": "Ea6", "laneType": "coastal", "cost": 1 },
+
+    { "from": "Ea1", "to": "X1", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea5", "to": "X1", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea6", "to": "X2", "laneType": "open-sea", "cost": 1 },
+    { "from": "Ea4", "to": "X3", "laneType": "open-sea", "cost": 1 }
+  ]
+}

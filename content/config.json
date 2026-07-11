@@ -1,0 +1,20 @@
+{
+  "oilTargetX": 12,
+  "fleetSize": 4,
+  "perShipCargo": 5,
+  "clockLength": 12,
+  "movementAllowance": 2,
+  "popularity": {
+    "start": 10,
+    "perShipLossCost": 2
+  },
+  "placementBudget": {
+    "total": 6,
+    "perType": { "mine": 3, "ambush": 2, "sensor": 2 }
+  },
+  "draw": {
+    "cadence": 1,
+    "handSize": 5
+  },
+  "seed": 12345
+}

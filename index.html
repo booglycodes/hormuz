@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hormuz — Strait Runner</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header id="topbar">
+    <h1>⚓ HORMUZ</h1>
+    <span class="tagline">Run the oil. Hold the strait.</span>
+    <span id="mode-controls"></span>
+  </header>
+
+  <!-- Menu / lobby -->
+  <section id="menu">
+    <div class="menu-card">
+      <h2>New game</h2>
+      <p class="blurb">
+        Asymmetric two-player game. The <strong>United States</strong> runs a visible fleet of
+        oil tankers through the Strait of Hormuz, trying to deliver more than the target amount of
+        oil before the clock runs out — while managing its popularity. <strong>Iran</strong> is the
+        hidden, weaker side: it secretly places mines, ambushes, and sensors, springing surprise
+        attacks to sink tankers and run out the clock.
+      </p>
+
+      <div class="menu-modes">
+        <div class="menu-mode">
+          <h3>Local hot-seat</h3>
+          <p>One device, pass-and-play. A Swap Sides screen hides each side's secrets.</p>
+          <button class="btn primary" id="btn-hotseat">Start hot-seat game</button>
+        </div>
+
+        <div class="menu-mode">
+          <h3>Online (peer-to-peer)</h3>
+          <p>Play across two devices via Trystero WebRTC. No server. Trust-based (v1).</p>
+          <div class="online-form">
+            <label>Room code
+              <input id="room-code" type="text" placeholder="e.g. HORMUZ-42" />
+            </label>
+            <label>Your side (host)
+              <select id="host-side">
+                <option value="US">United States</option>
+                <option value="IRAN">Iran</option>
+              </select>
+            </label>
+            <div class="online-buttons">
+              <button class="btn" id="btn-host">Host new room</button>
+              <button class="btn" id="btn-join">Join room</button>
+            </div>
+            <div id="online-status" class="status"></div>
+          </div>
+        </div>
+      </div>
+
+      <details class="rules">
+        <summary>How to play</summary>
+        <ul>
+          <li><strong>Iran setup:</strong> place hidden mines (nodes or lanes), ambushes, and sensors within budget, then End Setup.</li>
+          <li><strong>US turn:</strong> click a tanker to select it, then click an adjacent node to move (limited steps/turn). Reach an <em>exit</em> to bank its oil. Play US ability cards. End Turn.</li>
+          <li><strong>Iran turn:</strong> place any remaining assets, play Iran ability cards, End Turn.</li>
+          <li><strong>US wins</strong> by delivering more than the target oil. <strong>Iran wins</strong> on the clock, by collapsing US popularity, or by sinking the whole fleet.</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <section id="game" hidden>
+    <div id="board" class="board"></div>
+    <aside id="panel" class="panel"></aside>
+  </section>
+
+  <!-- Swap-sides interstitial -->
+  <div id="overlay" class="overlay"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

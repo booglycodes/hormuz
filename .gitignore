@@ -1,0 +1,12 @@
+# Build output
+dist/
+node_modules/
+
+# Logs
+*.log
+build.log
+
+# Editor / OS
+.DS_Store
+.vscode/
+*.tsbuildinfo
