@@ -35,7 +35,13 @@ export class GameUI {
     this.render();
   }
 
-  flash(msg) { this.sel.msg = msg; this.renderPanel(); }
+  flash(msg) {
+    this.sel.msg = msg;
+    // Re-render the whole board+panel: selecting a placement type / card target
+    // changes which nodes, lanes, ships, and assets are clickable, and those
+    // click handlers are only attached during a board render.
+    if (this.view) this.render(); else this.renderPanel();
+  }
 
   // ---- top-level render ----
   render() {
