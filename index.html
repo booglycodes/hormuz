@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -186,15 +186,7 @@
     const STATE_RATE = 33;
 
 
-    const game = document.querySelector("#game");
-    const status = document.querySelector("#status");
-    const roomInput = document.querySelector("#roomInput");
-    const hostButton = document.querySelector("#hostButton");
-    const joinButton = document.querySelector("#joinButton");
-
-    let myId = null;
-
-    // Generate a brand new random color on every page load/refresh/deployment
+    // Dynamic color validation for deployment checking
     const myHue = Math.floor(Math.random() * 360);
     const myColor = `hsl(${myHue}, 90%, 60%)`;
 
@@ -202,6 +194,14 @@
     const remoteInputs = {};
     const playerElements = new Map();
     const serverStates = {};
+
+    let myId = null;
+    let room = null;
+    let isHost = false;
+    let sendInput = null;
+    let receiveInput = null;
+    let sendState = null;
+    let receiveState = null;
 
     const keys = {
       w: false,
@@ -231,14 +231,6 @@
     });
 
 
-    let room = null;
-    let isHost = false;
-    let sendInput = null;
-    let receiveInput = null;
-    let sendState = null;
-    let receiveState = null;
-
-
     function createPlayer() {
       return {
         x: WORLD.width / 2 + (Math.random() - 0.5) * 150,
@@ -257,34 +249,33 @@
     }
 
 
-    function createPlayerElement(id) {
+    function createPlayerElement(id, gameEl) {
       const element = document.createElement("div");
       element.className = "player";
 
-      // Assign deployment-unique color for 'me', and stable hashed color for others
       const color = (id === myId) ? myColor : stringToColor(id);
       element.style.background = color;
       element.style.boxShadow = `0 0 12px ${color}`;
 
       const label = document.createElement("div");
       label.className = "player-label";
-      label.textContent = id === myId ? `YOU (${myHue}°)` : id.slice(0, 6);
+      label.textContent = id === myId ? `YOU [${myHue}°]` : id.slice(0, 6);
 
       element.appendChild(label);
-      game.appendChild(element);
+      gameEl.appendChild(element);
       playerElements.set(id, element);
 
       return element;
     }
 
 
-    function renderPlayer(id) {
+    function renderPlayer(id, gameEl) {
       const player = players[id];
       if (!player) return;
 
       let element = playerElements.get(id);
       if (!element) {
-        element = createPlayerElement(id);
+        element = createPlayerElement(id, gameEl);
       }
 
       const xPercent = (player.x / WORLD.width) * 100;
@@ -320,204 +311,216 @@
     }
 
 
-    function startHost() {
-      isHost = true;
-      const roomName = roomInput.value.trim() || "wasd-demo";
+    // Ensure DOM is fully loaded before querying elements
+    document.addEventListener("DOMContentLoaded", () => {
+      const game = document.querySelector("#game");
+      const status = document.querySelector("#status");
+      const roomInput = document.querySelector("#roomInput");
+      const hostButton = document.querySelector("#hostButton");
+      const joinButton = document.querySelector("#joinButton");
 
-      room = joinRoom({ appId: APP_ID }, roomName);
-      myId = room.selfId;
+      // Update status to show deployment hue verification on load
+      status.textContent = `Deployment Hue: ${myHue}° | Choose Host or Join`;
 
-      [sendInput, receiveInput] = room.makeAction("input");
+      function startHost() {
+        isHost = true;
+        const roomName = roomInput.value.trim() || "wasd-demo";
 
-      receiveInput((input, peerId) => {
-        remoteInputs[peerId] = {
-          w: !!input.w,
-          a: !!input.a,
-          s: !!input.s,
-          d: !!input.d
-        };
+        room = joinRoom({ appId: APP_ID }, roomName);
+        myId = room.selfId;
 
-        if (!players[peerId]) {
+        [sendInput, receiveInput] = room.makeAction("input");
+
+        receiveInput((input, peerId) => {
+          remoteInputs[peerId] = {
+            w: !!input.w,
+            a: !!input.a,
+            s: !!input.s,
+            d: !!input.d
+          };
+
+          if (!players[peerId]) {
+            players[peerId] = createPlayer();
+          }
+        });
+
+        [sendState, receiveState] = room.makeAction("state");
+        receiveState(() => {});
+
+        room.onPeerJoin(peerId => {
           players[peerId] = createPlayer();
-        }
-      });
+          remoteInputs[peerId] = { w: false, a: false, s: false, d: false };
+          sendState(structuredClone(players));
+        });
 
-      [sendState, receiveState] = room.makeAction("state");
-      receiveState(() => {});
+        room.onPeerLeave(peerId => {
+          delete players[peerId];
+          delete remoteInputs[peerId];
+          broadcastState();
+        });
 
-      room.onPeerJoin(peerId => {
-        players[peerId] = createPlayer();
-        remoteInputs[peerId] = { w: false, a: false, s: false, d: false };
-        sendState(structuredClone(players));
-      });
+        players[myId] = createPlayer();
 
-      room.onPeerLeave(peerId => {
-        delete players[peerId];
-        delete remoteInputs[peerId];
-        broadcastState();
-      });
-
-      players[myId] = createPlayer();
-
-      status.textContent = `HOST — ${roomName}`;
-      hostButton.disabled = true;
-      joinButton.disabled = true;
-      roomInput.disabled = true;
-    }
+        status.textContent = `HOST [${myHue}°] — ${roomName}`;
+        hostButton.disabled = true;
+        joinButton.disabled = true;
+        roomInput.disabled = true;
+      }
 
 
-    function startClient() {
-      isHost = false;
-      const roomName = roomInput.value.trim() || "wasd-demo";
+      function startClient() {
+        isHost = false;
+        const roomName = roomInput.value.trim() || "wasd-demo";
 
-      room = joinRoom({ appId: APP_ID }, roomName);
-      myId = room.selfId;
+        room = joinRoom({ appId: APP_ID }, roomName);
+        myId = room.selfId;
 
-      [sendInput, receiveInput] = room.makeAction("input");
-      receiveInput(() => {});
+        [sendInput, receiveInput] = room.makeAction("input");
+        receiveInput(() => {});
 
-      [sendState, receiveState] = room.makeAction("state");
+        [sendState, receiveState] = room.makeAction("state");
 
-      receiveState(state => {
-        for (const id of Object.keys(state)) {
-          if (id === myId) continue;
+        receiveState(state => {
+          for (const id of Object.keys(state)) {
+            if (id === myId) continue;
 
-          if (!players[id]) {
-            players[id] = { ...state[id] };
+            if (!players[id]) {
+              players[id] = { ...state[id] };
+            }
+
+            serverStates[id] = { x: state[id].x, y: state[id].y };
           }
 
-          serverStates[id] = { x: state[id].x, y: state[id].y };
+          for (const id of Object.keys(players)) {
+            if (id !== myId && !state[id]) {
+              delete players[id];
+              delete serverStates[id];
+            }
+          }
+        });
+
+        room.onPeerJoin(peerId => {});
+        room.onPeerLeave(peerId => {
+          delete players[peerId];
+          delete serverStates[peerId];
+        });
+
+        players[myId] = createPlayer();
+
+        status.textContent = `CLIENT [${myHue}°] — ${roomName}`;
+        hostButton.disabled = true;
+        joinButton.disabled = true;
+        roomInput.disabled = true;
+      }
+
+
+      let hostLastTime = performance.now();
+      let lastBroadcast = performance.now();
+
+      function hostLoop(now) {
+        const dt = Math.min((now - hostLastTime) / 1000, 0.05);
+        hostLastTime = now;
+
+        if (players[myId]) {
+          movePlayer(players[myId], keys, dt);
+          renderPlayer(myId, game);
+        }
+
+        for (const id of Object.keys(remoteInputs)) {
+          if (!players[id]) continue;
+          movePlayer(players[id], remoteInputs[id], dt);
+          renderPlayer(id, game);
+        }
+
+        if (now - lastBroadcast >= STATE_RATE) {
+          broadcastState();
+          lastBroadcast = now;
+        }
+
+        requestAnimationFrame(hostLoop);
+      }
+
+
+      let clientLastTime = performance.now();
+
+      function clientLoop(now) {
+        const dt = Math.min((now - clientLastTime) / 1000, 0.05);
+        clientLastTime = now;
+
+        if (players[myId]) {
+          movePlayer(players[myId], keys, dt);
+          renderPlayer(myId, game);
         }
 
         for (const id of Object.keys(players)) {
-          if (id !== myId && !state[id]) {
-            delete players[id];
-            delete serverStates[id];
+          if (id === myId) continue;
+
+          if (serverStates[id]) {
+            const lerpFactor = Math.min(1, dt * 15);
+            players[id].x += (serverStates[id].x - players[id].x) * lerpFactor;
+            players[id].y += (serverStates[id].y - players[id].y) * lerpFactor;
+          }
+
+          renderPlayer(id, game);
+        }
+
+        for (const [id, element] of playerElements) {
+          if (!players[id]) {
+            element.remove();
+            playerElements.delete(id);
           }
         }
+
+        requestAnimationFrame(clientLoop);
+      }
+
+
+      let lastInputSent = performance.now();
+
+      function networkLoop(now) {
+        if (!isHost && sendInput) {
+          const keysChanged =
+            keys.w !== lastSentKeys.w ||
+            keys.a !== lastSentKeys.a ||
+            keys.s !== lastSentKeys.s ||
+            keys.d !== lastSentKeys.d;
+
+          if (keysChanged || (now - lastInputSent >= INPUT_RATE)) {
+            sendInput({
+              w: keys.w,
+              a: keys.a,
+              s: keys.s,
+              d: keys.d
+            });
+            lastSentKeys = { ...keys };
+            lastInputSent = now;
+          }
+        }
+
+        requestAnimationFrame(networkLoop);
+      }
+
+
+      function broadcastState() {
+        if (!isHost || !sendState) return;
+        sendState(structuredClone(players));
+      }
+
+
+      hostButton.addEventListener("click", () => {
+        if (room) return;
+        startHost();
+        requestAnimationFrame(hostLoop);
+        requestAnimationFrame(networkLoop);
       });
 
-      room.onPeerJoin(peerId => {});
-      room.onPeerLeave(peerId => {
-        delete players[peerId];
-        delete serverStates[peerId];
+
+      joinButton.addEventListener("click", () => {
+        if (room) return;
+        startClient();
+        requestAnimationFrame(clientLoop);
+        requestAnimationFrame(networkLoop);
       });
-
-      players[myId] = createPlayer();
-
-      status.textContent = `CLIENT — ${roomName}`;
-      hostButton.disabled = true;
-      joinButton.disabled = true;
-      roomInput.disabled = true;
-    }
-
-
-    let hostLastTime = performance.now();
-    let lastBroadcast = performance.now();
-
-    function hostLoop(now) {
-      const dt = Math.min((now - hostLastTime) / 1000, 0.05);
-      hostLastTime = now;
-
-      if (players[myId]) {
-        movePlayer(players[myId], keys, dt);
-        renderPlayer(myId);
-      }
-
-      for (const id of Object.keys(remoteInputs)) {
-        if (!players[id]) continue;
-        movePlayer(players[id], remoteInputs[id], dt);
-        renderPlayer(id);
-      }
-
-      if (now - lastBroadcast >= STATE_RATE) {
-        broadcastState();
-        lastBroadcast = now;
-      }
-
-      requestAnimationFrame(hostLoop);
-    }
-
-
-    let clientLastTime = performance.now();
-
-    function clientLoop(now) {
-      const dt = Math.min((now - clientLastTime) / 1000, 0.05);
-      clientLastTime = now;
-
-      if (players[myId]) {
-        movePlayer(players[myId], keys, dt);
-        renderPlayer(myId);
-      }
-
-      for (const id of Object.keys(players)) {
-        if (id === myId) continue;
-
-        if (serverStates[id]) {
-          const lerpFactor = Math.min(1, dt * 15);
-          players[id].x += (serverStates[id].x - players[id].x) * lerpFactor;
-          players[id].y += (serverStates[id].y - players[id].y) * lerpFactor;
-        }
-
-        renderPlayer(id);
-      }
-
-      for (const [id, element] of playerElements) {
-        if (!players[id]) {
-          element.remove();
-          playerElements.delete(id);
-        }
-      }
-
-      requestAnimationFrame(clientLoop);
-    }
-
-
-    let lastInputSent = performance.now();
-
-    function networkLoop(now) {
-      if (!isHost && sendInput) {
-        const keysChanged =
-          keys.w !== lastSentKeys.w ||
-          keys.a !== lastSentKeys.a ||
-          keys.s !== lastSentKeys.s ||
-          keys.d !== lastSentKeys.d;
-
-        if (keysChanged || (now - lastInputSent >= INPUT_RATE)) {
-          sendInput({
-            w: keys.w,
-            a: keys.a,
-            s: keys.s,
-            d: keys.d
-          });
-          lastSentKeys = { ...keys };
-          lastInputSent = now;
-        }
-      }
-
-      requestAnimationFrame(networkLoop);
-    }
-
-
-    function broadcastState() {
-      if (!isHost || !sendState) return;
-      sendState(structuredClone(players));
-    }
-
-
-    hostButton.addEventListener("click", () => {
-      if (room) return;
-      startHost();
-      requestAnimationFrame(hostLoop);
-      requestAnimationFrame(networkLoop);
-    });
-
-
-    joinButton.addEventListener("click", () => {
-      if (room) return;
-      startClient();
-      requestAnimationFrame(clientLoop);
-      requestAnimationFrame(networkLoop);
     });
 
   </script>
