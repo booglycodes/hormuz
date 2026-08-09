@@ -1,4 +1,171 @@
-<script type="module">
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trystero WASD Game</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+      background: #080b12;
+      color: white;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #ui {
+      width: min(900px, 94vw);
+      padding: 18px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #status {
+      color: #9ca3af;
+      font-size: 14px;
+      margin-right: auto;
+    }
+
+    input,
+    button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid #303746;
+    }
+
+    input {
+      width: 150px;
+      padding: 9px 11px;
+      background: #151a24;
+      color: white;
+      outline: none;
+    }
+
+    button {
+      padding: 9px 14px;
+      color: white;
+      background: #2563eb;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    #game {
+      position: relative;
+      width: min(900px, 94vw);
+      aspect-ratio: 16 / 9;
+
+      background-color: #0f172a;
+
+      background-image:
+        linear-gradient(
+          rgba(255,255,255,0.035) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,0.035) 1px,
+          transparent 1px
+        );
+
+      background-size: 40px 40px;
+
+      border: 2px solid #293244;
+      border-radius: 12px;
+
+      overflow: hidden;
+    }
+
+    .player {
+      position: absolute;
+
+      width: 32px;
+      height: 32px;
+
+      transform: translate(-50%, -50%);
+
+      border-radius: 6px;
+
+      pointer-events: none;
+      will-change: left, top;
+    }
+
+    .player-label {
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+
+      transform: translateX(-50%);
+
+      margin-bottom: 5px;
+
+      font-size: 10px;
+      color: #d1d5db;
+
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    #help {
+      margin-top: 10px;
+      color: #64748b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="ui">
+    <div id="status">Choose Host or Join</div>
+
+    <input
+      id="roomInput"
+      value="wasd-demo"
+      placeholder="Room name"
+    />
+
+    <button id="hostButton">
+      Host Game
+    </button>
+
+    <button id="joinButton">
+      Join Game
+    </button>
+  </div>
+
+  <div id="game"></div>
+
+  <div id="help">
+    WASD to move
+  </div>
+
+
+  <script type="module">
 
     import {
       joinRoom
@@ -25,8 +192,11 @@
     const hostButton = document.querySelector("#hostButton");
     const joinButton = document.querySelector("#joinButton");
 
-    // Will be assigned room.selfId upon joining/hosting
     let myId = null;
+
+    // Generate a brand new random color on every page load/refresh/deployment
+    const myHue = Math.floor(Math.random() * 360);
+    const myColor = `hsl(${myHue}, 90%, 60%)`;
 
     const players = {};
     const remoteInputs = {};
@@ -77,13 +247,28 @@
     }
 
 
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const h = Math.abs(hash) % 360;
+      return `hsl(${h}, 85%, 55%)`;
+    }
+
+
     function createPlayerElement(id) {
       const element = document.createElement("div");
-      element.className = id === myId ? "player me" : "player other";
+      element.className = "player";
+
+      // Assign deployment-unique color for 'me', and stable hashed color for others
+      const color = (id === myId) ? myColor : stringToColor(id);
+      element.style.background = color;
+      element.style.boxShadow = `0 0 12px ${color}`;
 
       const label = document.createElement("div");
       label.className = "player-label";
-      label.textContent = id === myId ? "YOU" : id.slice(0, 6);
+      label.textContent = id === myId ? `YOU (${myHue}°)` : id.slice(0, 6);
 
       element.appendChild(label);
       game.appendChild(element);
@@ -140,7 +325,7 @@
       const roomName = roomInput.value.trim() || "wasd-demo";
 
       room = joinRoom({ appId: APP_ID }, roomName);
-      myId = room.selfId; // Use Trystero's unique peer ID
+      myId = room.selfId;
 
       [sendInput, receiveInput] = room.makeAction("input");
 
@@ -186,7 +371,7 @@
       const roomName = roomInput.value.trim() || "wasd-demo";
 
       room = joinRoom({ appId: APP_ID }, roomName);
-      myId = room.selfId; // Use Trystero's unique peer ID
+      myId = room.selfId;
 
       [sendInput, receiveInput] = room.makeAction("input");
       receiveInput(() => {});
@@ -195,7 +380,7 @@
 
       receiveState(state => {
         for (const id of Object.keys(state)) {
-          if (id === myId) continue; // Now correctly skips own ID!
+          if (id === myId) continue;
 
           if (!players[id]) {
             players[id] = { ...state[id] };
@@ -336,3 +521,6 @@
     });
 
   </script>
+
+</body>
+</html>
