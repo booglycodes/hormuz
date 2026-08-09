@@ -186,7 +186,7 @@
     const STATE_RATE = 33;
 
 
-    // Dynamic color validation for deployment checking
+    // Deployment validation hue change
     const myHue = Math.floor(Math.random() * 360);
     const myColor = `hsl(${myHue}, 90%, 60%)`;
 
@@ -311,7 +311,6 @@
     }
 
 
-    // Ensure DOM is fully loaded before querying elements
     document.addEventListener("DOMContentLoaded", () => {
       const game = document.querySelector("#game");
       const status = document.querySelector("#status");
@@ -319,7 +318,6 @@
       const hostButton = document.querySelector("#hostButton");
       const joinButton = document.querySelector("#joinButton");
 
-      // Update status to show deployment hue verification on load
       status.textContent = `Deployment Hue: ${myHue}° | Choose Host or Join`;
 
       function startHost() {
@@ -382,6 +380,7 @@
 
         receiveState(state => {
           for (const id of Object.keys(state)) {
+            // Guard: completely ignore anything matching our own selfId
             if (id === myId) continue;
 
             if (!players[id]) {
@@ -465,7 +464,7 @@
         }
 
         for (const [id, element] of playerElements) {
-          if (!players[id]) {
+          if (!players[id] && id !== myId) {
             element.remove();
             playerElements.delete(id);
           }
