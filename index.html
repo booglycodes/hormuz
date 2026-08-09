@@ -1,183 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trystero WASD Game</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-      background: #080b12;
-      color: white;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    #ui {
-      width: min(900px, 94vw);
-      padding: 18px 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    #status {
-      color: #9ca3af;
-      font-size: 14px;
-      margin-right: auto;
-    }
-
-    input,
-    button {
-      font: inherit;
-      border-radius: 8px;
-      border: 1px solid #303746;
-    }
-
-    input {
-      width: 150px;
-      padding: 9px 11px;
-      background: #151a24;
-      color: white;
-      outline: none;
-    }
-
-    button {
-      padding: 9px 14px;
-      color: white;
-      background: #2563eb;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #1d4ed8;
-    }
-
-    button:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-
-    #game {
-      position: relative;
-      width: min(900px, 94vw);
-      aspect-ratio: 16 / 9;
-
-      background-color: #0f172a;
-
-      background-image:
-        linear-gradient(
-          rgba(255,255,255,0.035) 1px,
-          transparent 1px
-        ),
-        linear-gradient(
-          90deg,
-          rgba(255,255,255,0.035) 1px,
-          transparent 1px
-        );
-
-      background-size: 40px 40px;
-
-      border: 2px solid #293244;
-      border-radius: 12px;
-
-      overflow: hidden;
-    }
-
-    .player {
-      position: absolute;
-
-      width: 32px;
-      height: 32px;
-
-      transform: translate(-50%, -50%);
-
-      border-radius: 6px;
-
-      pointer-events: none;
-      will-change: left, top;
-    }
-
-    .player.me {
-      background: #22c55e;
-      box-shadow:
-        0 0 12px rgba(34, 197, 94, 0.6);
-    }
-
-    .player.other {
-      background: #ef4444;
-      box-shadow:
-        0 0 12px rgba(239, 68, 68, 0.5);
-    }
-
-    .player-label {
-      position: absolute;
-      left: 50%;
-      bottom: 100%;
-
-      transform: translateX(-50%);
-
-      margin-bottom: 5px;
-
-      font-size: 10px;
-      color: #d1d5db;
-
-      white-space: nowrap;
-      user-select: none;
-    }
-
-    #help {
-      margin-top: 10px;
-      color: #64748b;
-      font-size: 13px;
-    }
-  </style>
-</head>
-
-<body>
-
-  <div id="ui">
-    <div id="status">Choose Host or Join</div>
-
-    <input
-      id="roomInput"
-      value="wasd-demo"
-      placeholder="Room name"
-    />
-
-    <button id="hostButton">
-      Host Game
-    </button>
-
-    <button id="joinButton">
-      Join Game
-    </button>
-  </div>
-
-  <div id="game"></div>
-
-  <div id="help">
-    WASD to move
-  </div>
-
-
-  <script type="module">
+<script type="module">
 
     import {
       joinRoom
@@ -194,7 +15,6 @@
     const PLAYER_SIZE = 32;
     const SPEED = 280;
 
-    // Optimized network rates (~30fps) to prevent data channel saturation
     const INPUT_RATE = 33;
     const STATE_RATE = 33;
 
@@ -205,11 +25,13 @@
     const hostButton = document.querySelector("#hostButton");
     const joinButton = document.querySelector("#joinButton");
 
-    const myId = crypto.randomUUID();
+    // Will be assigned room.selfId upon joining/hosting
+    let myId = null;
 
     const players = {};
     const remoteInputs = {};
     const playerElements = new Map();
+    const serverStates = {};
 
     const keys = {
       w: false,
@@ -288,20 +110,6 @@
     }
 
 
-    function renderAll() {
-      for (const id of Object.keys(players)) {
-        renderPlayer(id);
-      }
-
-      for (const [id, element] of playerElements) {
-        if (!players[id]) {
-          element.remove();
-          playerElements.delete(id);
-        }
-      }
-    }
-
-
     function movePlayer(player, input, dt) {
       let dx = 0;
       let dy = 0;
@@ -332,6 +140,7 @@
       const roomName = roomInput.value.trim() || "wasd-demo";
 
       room = joinRoom({ appId: APP_ID }, roomName);
+      myId = room.selfId; // Use Trystero's unique peer ID
 
       [sendInput, receiveInput] = room.makeAction("input");
 
@@ -360,7 +169,6 @@
       room.onPeerLeave(peerId => {
         delete players[peerId];
         delete remoteInputs[peerId];
-        renderAll();
         broadcastState();
       });
 
@@ -378,6 +186,7 @@
       const roomName = roomInput.value.trim() || "wasd-demo";
 
       room = joinRoom({ appId: APP_ID }, roomName);
+      myId = room.selfId; // Use Trystero's unique peer ID
 
       [sendInput, receiveInput] = room.makeAction("input");
       receiveInput(() => {});
@@ -386,23 +195,27 @@
 
       receiveState(state => {
         for (const id of Object.keys(state)) {
-          if (id === myId) continue;
-          players[id] = state[id];
+          if (id === myId) continue; // Now correctly skips own ID!
+
+          if (!players[id]) {
+            players[id] = { ...state[id] };
+          }
+
+          serverStates[id] = { x: state[id].x, y: state[id].y };
         }
 
         for (const id of Object.keys(players)) {
           if (id !== myId && !state[id]) {
             delete players[id];
+            delete serverStates[id];
           }
         }
-
-        renderAll();
       });
 
       room.onPeerJoin(peerId => {});
       room.onPeerLeave(peerId => {
         delete players[peerId];
-        renderAll();
+        delete serverStates[peerId];
       });
 
       players[myId] = createPlayer();
@@ -453,8 +266,21 @@
       }
 
       for (const id of Object.keys(players)) {
-        if (id !== myId) {
-          renderPlayer(id);
+        if (id === myId) continue;
+
+        if (serverStates[id]) {
+          const lerpFactor = Math.min(1, dt * 15);
+          players[id].x += (serverStates[id].x - players[id].x) * lerpFactor;
+          players[id].y += (serverStates[id].y - players[id].y) * lerpFactor;
+        }
+
+        renderPlayer(id);
+      }
+
+      for (const [id, element] of playerElements) {
+        if (!players[id]) {
+          element.remove();
+          playerElements.delete(id);
         }
       }
 
@@ -472,7 +298,6 @@
           keys.s !== lastSentKeys.s ||
           keys.d !== lastSentKeys.d;
 
-        // Send immediately if keys change, or fallback to interval rate
         if (keysChanged || (now - lastInputSent >= INPUT_RATE)) {
           sendInput({
             w: keys.w,
@@ -511,6 +336,3 @@
     });
 
   </script>
-
-</body>
-</html>
