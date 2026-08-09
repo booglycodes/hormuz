@@ -110,11 +110,6 @@
 
       border-radius: 6px;
 
-      /* IMPORTANT:
-         There is intentionally NO transition here.
-         Movement is updated every animation frame.
-      */
-
       pointer-events: none;
       will-change: left, top;
     }
@@ -184,22 +179,10 @@
 
   <script type="module">
 
-    /*
-     * ============================================================
-     * TRYSTERO
-     * ============================================================
-     */
-
     import {
       joinRoom
     } from "https://cdn.jsdelivr.net/npm/trystero@0.22.0/+esm";
 
-
-    /*
-     * ============================================================
-     * CONFIG
-     * ============================================================
-     */
 
     const APP_ID = "wasd-square-game";
 
@@ -209,71 +192,24 @@
     };
 
     const PLAYER_SIZE = 32;
-
     const SPEED = 280;
 
-    // Network input rate.
-    // This does NOT control local movement.
-    const INPUT_RATE = 16;
+    // Optimized network rates (~30fps) to prevent data channel saturation
+    const INPUT_RATE = 33;
+    const STATE_RATE = 33;
 
-    // Host state broadcast rate.
-    const STATE_RATE = 16;
-
-
-    /*
-     * ============================================================
-     * DOM
-     * ============================================================
-     */
 
     const game = document.querySelector("#game");
-
     const status = document.querySelector("#status");
+    const roomInput = document.querySelector("#roomInput");
+    const hostButton = document.querySelector("#hostButton");
+    const joinButton = document.querySelector("#joinButton");
 
-    const roomInput =
-      document.querySelector("#roomInput");
-
-    const hostButton =
-      document.querySelector("#hostButton");
-
-    const joinButton =
-      document.querySelector("#joinButton");
-
-
-    /*
-     * ============================================================
-     * PLAYER ID
-     * ============================================================
-     */
-
-    const myId =
-      crypto.randomUUID();
-
-
-    /*
-     * ============================================================
-     * GAME STATE
-     * ============================================================
-     */
-
-    // Player positions.
+    const myId = crypto.randomUUID();
 
     const players = {};
-
-    // Inputs known by the host.
-
     const remoteInputs = {};
-
-    // DOM elements for players.
-
     const playerElements = new Map();
-
-
-    /*
-     * ============================================================
-     * LOCAL INPUT
-     * ============================================================
-     */
 
     const keys = {
       w: false,
@@ -282,904 +218,297 @@
       d: false
     };
 
+    let lastSentKeys = { w: false, a: false, s: false, d: false };
+
 
     window.addEventListener("keydown", event => {
-
       const key = event.key.toLowerCase();
-
       if (key in keys) {
-
         keys[key] = true;
-
         event.preventDefault();
       }
     });
 
 
     window.addEventListener("keyup", event => {
-
       const key = event.key.toLowerCase();
-
       if (key in keys) {
-
         keys[key] = false;
-
         event.preventDefault();
       }
     });
 
 
-    /*
-     * ============================================================
-     * ROOM
-     * ============================================================
-     */
-
     let room = null;
-
     let isHost = false;
-
     let sendInput = null;
-
     let receiveInput = null;
-
     let sendState = null;
-
     let receiveState = null;
 
 
-    /*
-     * ============================================================
-     * RANDOM PLAYER SPAWN
-     * ============================================================
-     */
-
     function createPlayer() {
-
       return {
-
-        x:
-          WORLD.width / 2 +
-          (Math.random() - 0.5) * 150,
-
-        y:
-          WORLD.height / 2 +
-          (Math.random() - 0.5) * 150
+        x: WORLD.width / 2 + (Math.random() - 0.5) * 150,
+        y: WORLD.height / 2 + (Math.random() - 0.5) * 150
       };
     }
 
 
-    /*
-     * ============================================================
-     * DOM PLAYER
-     * ============================================================
-     */
-
     function createPlayerElement(id) {
+      const element = document.createElement("div");
+      element.className = id === myId ? "player me" : "player other";
 
-      const element =
-        document.createElement("div");
-
-      element.className =
-        id === myId
-          ? "player me"
-          : "player other";
-
-
-      const label =
-        document.createElement("div");
-
-      label.className =
-        "player-label";
-
-      label.textContent =
-        id === myId
-          ? "YOU"
-          : id.slice(0, 6);
-
+      const label = document.createElement("div");
+      label.className = "player-label";
+      label.textContent = id === myId ? "YOU" : id.slice(0, 6);
 
       element.appendChild(label);
-
       game.appendChild(element);
-
-      playerElements.set(
-        id,
-        element
-      );
+      playerElements.set(id, element);
 
       return element;
     }
 
 
-    /*
-     * ============================================================
-     * RENDER ONE PLAYER
-     *
-     * IMPORTANT:
-     * This is called every animation frame for our own player.
-     *
-     * There is no network wait here.
-     * ============================================================
-     */
-
     function renderPlayer(id) {
+      const player = players[id];
+      if (!player) return;
 
-      const player =
-        players[id];
-
-      if (!player) {
-        return;
-      }
-
-
-      let element =
-        playerElements.get(id);
-
-
+      let element = playerElements.get(id);
       if (!element) {
-
-        element =
-          createPlayerElement(id);
+        element = createPlayerElement(id);
       }
 
+      const xPercent = (player.x / WORLD.width) * 100;
+      const yPercent = (player.y / WORLD.height) * 100;
 
-      const xPercent =
-        (player.x / WORLD.width) * 100;
-
-      const yPercent =
-        (player.y / WORLD.height) * 100;
-
-
-      element.style.left =
-        `${xPercent}%`;
-
-      element.style.top =
-        `${yPercent}%`;
+      element.style.left = `${xPercent}%`;
+      element.style.top = `${yPercent}%`;
     }
 
 
-    /*
-     * ============================================================
-     * RENDER EVERYTHING
-     * ============================================================
-     */
-
     function renderAll() {
-
       for (const id of Object.keys(players)) {
-
         renderPlayer(id);
       }
 
-
-      // Remove players that left.
-
       for (const [id, element] of playerElements) {
-
         if (!players[id]) {
-
           element.remove();
-
           playerElements.delete(id);
         }
       }
     }
 
 
-    /*
-     * ============================================================
-     * MOVEMENT
-     * ============================================================
-     */
-
-    function movePlayer(
-      player,
-      input,
-      dt
-    ) {
-
+    function movePlayer(player, input, dt) {
       let dx = 0;
       let dy = 0;
 
-
-      if (input.w) {
-        dy -= 1;
-      }
-
-      if (input.s) {
-        dy += 1;
-      }
-
-      if (input.a) {
-        dx -= 1;
-      }
-
-      if (input.d) {
-        dx += 1;
-      }
-
-
-      // Normalize diagonal movement.
+      if (input.w) dy -= 1;
+      if (input.s) dy += 1;
+      if (input.a) dx -= 1;
+      if (input.d) dx += 1;
 
       if (dx !== 0 || dy !== 0) {
-
-        const length =
-          Math.hypot(dx, dy);
-
+        const length = Math.hypot(dx, dy);
         dx /= length;
         dy /= length;
       }
 
+      player.x += dx * SPEED * dt;
+      player.y += dy * SPEED * dt;
 
-      player.x +=
-        dx * SPEED * dt;
+      const half = PLAYER_SIZE / 2;
 
-      player.y +=
-        dy * SPEED * dt;
-
-
-      // Keep player inside world.
-
-      const half =
-        PLAYER_SIZE / 2;
-
-
-      player.x =
-        Math.max(
-          half,
-          Math.min(
-            WORLD.width - half,
-            player.x
-          )
-        );
-
-
-      player.y =
-        Math.max(
-          half,
-          Math.min(
-            WORLD.height - half,
-            player.y
-          )
-        );
+      player.x = Math.max(half, Math.min(WORLD.width - half, player.x));
+      player.y = Math.max(half, Math.min(WORLD.height - half, player.y));
     }
 
-
-    /*
-     * ============================================================
-     * HOST
-     * ============================================================
-     */
 
     function startHost() {
-
       isHost = true;
+      const roomName = roomInput.value.trim() || "wasd-demo";
 
-      const roomName =
-        roomInput.value.trim() ||
-        "wasd-demo";
+      room = joinRoom({ appId: APP_ID }, roomName);
 
+      [sendInput, receiveInput] = room.makeAction("input");
 
-      room =
-        joinRoom(
-          {
-            appId: APP_ID
-          },
-          roomName
-        );
+      receiveInput((input, peerId) => {
+        remoteInputs[peerId] = {
+          w: !!input.w,
+          a: !!input.a,
+          s: !!input.s,
+          d: !!input.d
+        };
 
-
-      /*
-       * ----------------------------------------------------------
-       * INPUT ACTION
-       * ----------------------------------------------------------
-       */
-
-      [
-        sendInput,
-        receiveInput
-      ] =
-        room.makeAction("input");
-
-
-      /*
-       * Host receives input from clients.
-       */
-
-      receiveInput(
-        (input, peerId) => {
-
-          remoteInputs[peerId] = {
-            w: !!input.w,
-            a: !!input.a,
-            s: !!input.s,
-            d: !!input.d
-          };
-
-
-          // Make sure the player exists.
-
-          if (!players[peerId]) {
-
-            players[peerId] =
-              createPlayer();
-          }
+        if (!players[peerId]) {
+          players[peerId] = createPlayer();
         }
-      );
+      });
 
+      [sendState, receiveState] = room.makeAction("state");
+      receiveState(() => {});
 
-      /*
-       * ----------------------------------------------------------
-       * STATE ACTION
-       * ----------------------------------------------------------
-       */
+      room.onPeerJoin(peerId => {
+        players[peerId] = createPlayer();
+        remoteInputs[peerId] = { w: false, a: false, s: false, d: false };
+        sendState(structuredClone(players));
+      });
 
-      [
-        sendState,
-        receiveState
-      ] =
-        room.makeAction("state");
+      room.onPeerLeave(peerId => {
+        delete players[peerId];
+        delete remoteInputs[peerId];
+        renderAll();
+        broadcastState();
+      });
 
+      players[myId] = createPlayer();
 
-      /*
-       * Host doesn't need to receive state.
-       */
-
-      receiveState(
-        () => {}
-      );
-
-
-      /*
-       * ----------------------------------------------------------
-       * PLAYER JOIN
-       * ----------------------------------------------------------
-       */
-
-      room.onPeerJoin(
-        peerId => {
-
-          console.log(
-            "Player joined:",
-            peerId
-          );
-
-
-          players[peerId] =
-            createPlayer();
-
-
-          remoteInputs[peerId] = {
-            w: false,
-            a: false,
-            s: false,
-            d: false
-          };
-
-
-          /*
-           * Immediately send the new player
-           * the current state.
-           */
-
-          sendState(
-            structuredClone(players)
-          );
-        }
-      );
-
-
-      /*
-       * ----------------------------------------------------------
-       * PLAYER LEAVE
-       * ----------------------------------------------------------
-       */
-
-      room.onPeerLeave(
-        peerId => {
-
-          console.log(
-            "Player left:",
-            peerId
-          );
-
-
-          delete players[peerId];
-
-          delete remoteInputs[peerId];
-
-
-          renderAll();
-
-
-          broadcastState();
-        }
-      );
-
-
-      /*
-       * Create host player.
-       */
-
-      players[myId] =
-        createPlayer();
-
-
-      status.textContent =
-        `HOST — ${roomName}`;
-
-
+      status.textContent = `HOST — ${roomName}`;
       hostButton.disabled = true;
       joinButton.disabled = true;
       roomInput.disabled = true;
-
-
-      console.log(
-        "Hosting room:",
-        roomName
-      );
     }
 
-
-    /*
-     * ============================================================
-     * CLIENT
-     * ============================================================
-     */
 
     function startClient() {
-
       isHost = false;
+      const roomName = roomInput.value.trim() || "wasd-demo";
 
-      const roomName =
-        roomInput.value.trim() ||
-        "wasd-demo";
+      room = joinRoom({ appId: APP_ID }, roomName);
 
+      [sendInput, receiveInput] = room.makeAction("input");
+      receiveInput(() => {});
 
-      room =
-        joinRoom(
-          {
-            appId: APP_ID
-          },
-          roomName
-        );
+      [sendState, receiveState] = room.makeAction("state");
 
+      receiveState(state => {
+        for (const id of Object.keys(state)) {
+          if (id === myId) continue;
+          players[id] = state[id];
+        }
 
-      /*
-       * ----------------------------------------------------------
-       * INPUT
-       * ----------------------------------------------------------
-       */
-
-      [
-        sendInput,
-        receiveInput
-      ] =
-        room.makeAction("input");
-
-
-      /*
-       * Only host should receive inputs.
-       */
-
-      receiveInput(
-        () => {}
-      );
-
-
-      /*
-       * ----------------------------------------------------------
-       * STATE
-       * ----------------------------------------------------------
-       */
-
-      [
-        sendState,
-        receiveState
-      ] =
-        room.makeAction("state");
-
-
-      /*
-       * Receive authoritative state from host.
-       *
-       * We intentionally DO NOT overwrite our own
-       * local position here.
-       *
-       * That would make WASD movement snap every
-       * time a network packet arrived.
-       */
-
-      receiveState(
-        state => {
-
-          for (const id of Object.keys(state)) {
-
-            // Don't overwrite local prediction.
-
-            if (id === myId) {
-              continue;
-            }
-
-
-            players[id] = state[id];
+        for (const id of Object.keys(players)) {
+          if (id !== myId && !state[id]) {
+            delete players[id];
           }
-
-
-          // Remove players that no longer exist.
-
-          for (const id of Object.keys(players)) {
-
-            if (
-              id !== myId &&
-              !state[id]
-            ) {
-              delete players[id];
-            }
-          }
-
-
-          renderAll();
         }
-      );
 
+        renderAll();
+      });
 
-      /*
-       * ----------------------------------------------------------
-       * JOIN
-       * ----------------------------------------------------------
-       */
+      room.onPeerJoin(peerId => {});
+      room.onPeerLeave(peerId => {
+        delete players[peerId];
+        renderAll();
+      });
 
-      room.onPeerJoin(
-        peerId => {
+      players[myId] = createPlayer();
 
-          console.log(
-            "Connected to peer:",
-            peerId
-          );
-        }
-      );
-
-
-      /*
-       * ----------------------------------------------------------
-       * LEAVE
-       * ----------------------------------------------------------
-       */
-
-      room.onPeerLeave(
-        peerId => {
-
-          delete players[peerId];
-
-          renderAll();
-        }
-      );
-
-
-      /*
-       * Create our local player immediately.
-       *
-       * This means WASD works before the first
-       * state packet comes back.
-       */
-
-      players[myId] =
-        createPlayer();
-
-
-      status.textContent =
-        `CLIENT — ${roomName}`;
-
-
+      status.textContent = `CLIENT — ${roomName}`;
       hostButton.disabled = true;
       joinButton.disabled = true;
       roomInput.disabled = true;
-
-
-      console.log(
-        "Joined room:",
-        roomName
-      );
     }
 
 
-    /*
-     * ============================================================
-     * HOST GAME LOOP
-     *
-     * Runs independently from networking.
-     *
-     * 60 FPS / display refresh rate.
-     * ============================================================
-     */
-
-    let hostLastTime =
-      performance.now();
-
-
-    let lastBroadcast =
-      performance.now();
-
+    let hostLastTime = performance.now();
+    let lastBroadcast = performance.now();
 
     function hostLoop(now) {
-
-      const dt =
-        Math.min(
-          (now - hostLastTime) / 1000,
-          0.05
-        );
-
-
-      hostLastTime =
-        now;
-
-
-      /*
-       * Host's own movement.
-       */
+      const dt = Math.min((now - hostLastTime) / 1000, 0.05);
+      hostLastTime = now;
 
       if (players[myId]) {
-
-        movePlayer(
-          players[myId],
-          keys,
-          dt
-        );
-
-
+        movePlayer(players[myId], keys, dt);
         renderPlayer(myId);
       }
 
-
-      /*
-       * Remote player movement.
-       *
-       * The HOST is authoritative.
-       */
-
-      for (
-        const id of Object.keys(remoteInputs)
-      ) {
-
-        if (!players[id]) {
-          continue;
-        }
-
-
-        movePlayer(
-          players[id],
-          remoteInputs[id],
-          dt
-        );
-
-
+      for (const id of Object.keys(remoteInputs)) {
+        if (!players[id]) continue;
+        movePlayer(players[id], remoteInputs[id], dt);
         renderPlayer(id);
       }
 
-
-      /*
-       * Network state is separate from rendering.
-       *
-       * Even if networking is slow, the host's
-       * local movement remains smooth.
-       */
-
-      if (
-        now - lastBroadcast >= STATE_RATE
-      ) {
-
+      if (now - lastBroadcast >= STATE_RATE) {
         broadcastState();
-
-        lastBroadcast =
-          now;
+        lastBroadcast = now;
       }
 
-
-      requestAnimationFrame(
-        hostLoop
-      );
+      requestAnimationFrame(hostLoop);
     }
 
 
-    /*
-     * ============================================================
-     * CLIENT LOCAL LOOP
-     *
-     * THIS is what makes WASD feel instant.
-     *
-     * The client moves its own player locally every
-     * browser frame.
-     * ============================================================
-     */
-
-    let clientLastTime =
-      performance.now();
-
+    let clientLastTime = performance.now();
 
     function clientLoop(now) {
-
-      const dt =
-        Math.min(
-          (now - clientLastTime) / 1000,
-          0.05
-        );
-
-
-      clientLastTime =
-        now;
-
-
-      /*
-       * Local prediction.
-       */
+      const dt = Math.min((now - clientLastTime) / 1000, 0.05);
+      clientLastTime = now;
 
       if (players[myId]) {
-
-        movePlayer(
-          players[myId],
-          keys,
-          dt
-        );
-
-
+        movePlayer(players[myId], keys, dt);
         renderPlayer(myId);
       }
 
-
-      /*
-       * Other players are rendered from the
-       * latest host state.
-       */
-
       for (const id of Object.keys(players)) {
-
         if (id !== myId) {
-
           renderPlayer(id);
         }
       }
 
-
-      requestAnimationFrame(
-        clientLoop
-      );
+      requestAnimationFrame(clientLoop);
     }
 
 
-    /*
-     * ============================================================
-     * CLIENT NETWORK LOOP
-     *
-     * This does NOT move the player.
-     *
-     * It only tells the host what buttons we're pressing.
-     * ============================================================
-     */
-
-    let lastInputSent =
-      performance.now();
-
+    let lastInputSent = performance.now();
 
     function networkLoop(now) {
+      if (!isHost && sendInput) {
+        const keysChanged =
+          keys.w !== lastSentKeys.w ||
+          keys.a !== lastSentKeys.a ||
+          keys.s !== lastSentKeys.s ||
+          keys.d !== lastSentKeys.d;
 
-      if (
-        !isHost &&
-        sendInput &&
-        now - lastInputSent >= INPUT_RATE
-      ) {
-
-        sendInput({
-          w: keys.w,
-          a: keys.a,
-          s: keys.s,
-          d: keys.d
-        });
-
-
-        lastInputSent =
-          now;
+        // Send immediately if keys change, or fallback to interval rate
+        if (keysChanged || (now - lastInputSent >= INPUT_RATE)) {
+          sendInput({
+            w: keys.w,
+            a: keys.a,
+            s: keys.s,
+            d: keys.d
+          });
+          lastSentKeys = { ...keys };
+          lastInputSent = now;
+        }
       }
 
-
-      requestAnimationFrame(
-        networkLoop
-      );
+      requestAnimationFrame(networkLoop);
     }
 
-
-    /*
-     * ============================================================
-     * BROADCAST STATE
-     * ============================================================
-     */
 
     function broadcastState() {
-
-      if (
-        !isHost ||
-        !sendState
-      ) {
-        return;
-      }
-
-
-      sendState(
-        structuredClone(players)
-      );
+      if (!isHost || !sendState) return;
+      sendState(structuredClone(players));
     }
 
 
-    /*
-     * ============================================================
-     * BUTTONS
-     * ============================================================
-     */
-
-    hostButton.addEventListener(
-      "click",
-      () => {
-
-        if (room) {
-          return;
-        }
+    hostButton.addEventListener("click", () => {
+      if (room) return;
+      startHost();
+      requestAnimationFrame(hostLoop);
+      requestAnimationFrame(networkLoop);
+    });
 
 
-        startHost();
-
-
-        /*
-         * Start immediately.
-         */
-
-        requestAnimationFrame(
-          hostLoop
-        );
-
-        requestAnimationFrame(
-          networkLoop
-        );
-      }
-    );
-
-
-    joinButton.addEventListener(
-      "click",
-      () => {
-
-        if (room) {
-          return;
-        }
-
-
-        startClient();
-
-
-        /*
-         * Start local prediction immediately.
-         */
-
-        requestAnimationFrame(
-          clientLoop
-        );
-
-        requestAnimationFrame(
-          networkLoop
-        );
-      }
-    );
-
-
-    /*
-     * ============================================================
-     * INITIAL
-     * ============================================================
-     */
-
-    console.log(
-      "Your player ID:",
-      myId
-    );
+    joinButton.addEventListener("click", () => {
+      if (room) return;
+      startClient();
+      requestAnimationFrame(clientLoop);
+      requestAnimationFrame(networkLoop);
+    });
 
   </script>
 
