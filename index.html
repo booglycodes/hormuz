@@ -186,8 +186,8 @@
     const STATE_RATE = 33;
 
 
-    // Deployment validation hue change
-    const myHue = Math.floor(Math.random() * 360);
+    // HARDCODED DEPLOYMENT HUE: Change this number on future updates to verify deployment!
+    const myHue = 215; 
     const myColor = `hsl(${myHue}, 90%, 60%)`;
 
     const players = {};
@@ -380,7 +380,6 @@
 
         receiveState(state => {
           for (const id of Object.keys(state)) {
-            // Guard: completely ignore anything matching our own selfId
             if (id === myId) continue;
 
             if (!players[id]) {
