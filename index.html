@@ -237,9 +237,9 @@
   </div>
 
   <script type="module">
-    console.log("[hormuz] build 2 — torrent + qr + joystick");
+    console.log("[hormuz] build 3 — nostr default + short code");
 
-    import { joinRoom } from "https://cdn.jsdelivr.net/npm/trystero@0.22.0/torrent/+esm";
+    import { joinRoom } from "https://cdn.jsdelivr.net/npm/trystero@0.22.0/+esm";
     import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
 
     const APP_ID = "wasd-square-game";
@@ -332,7 +332,7 @@
       const hostButton = document.getElementById("hostButton");
       const qrContainer = document.getElementById("qr-container");
 
-      const roomName = crypto.randomUUID();
+      const roomName = Math.random().toString(36).slice(2, 12);
 
       room = joinRoom({ appId: APP_ID }, roomName);
       myId = room.selfId;
