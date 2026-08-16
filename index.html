@@ -237,12 +237,20 @@
   </div>
 
   <script type="module">
-    console.log("[hormuz] build 3 — nostr default + short code");
+    console.log("[hormuz] build 4 — custom nostr relays");
 
     import { joinRoom } from "https://cdn.jsdelivr.net/npm/trystero@0.22.0/+esm";
     import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
 
     const APP_ID = "wasd-square-game";
+    const RELAY_CONFIG = {
+      appId: APP_ID,
+      relayUrls: [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.snort.social'
+      ]
+    };
     const WORLD = { width: 900, height: 506 };
     const PLAYER_SIZE = 32;
     const SPEED = 280;
@@ -334,7 +342,7 @@
 
       const roomName = Math.random().toString(36).slice(2, 12);
 
-      room = joinRoom({ appId: APP_ID }, roomName);
+      room = joinRoom(RELAY_CONFIG, roomName);
       myId = room.selfId;
 
       const [sendInput, receiveInput] = room.makeAction("input");
@@ -417,7 +425,7 @@
       joinScreen.style.display = "none";
       clientScreen.style.display = "flex";
 
-      room = joinRoom({ appId: APP_ID }, roomName);
+      room = joinRoom(RELAY_CONFIG, roomName);
       myId = room.selfId;
 
       const [sendInput, receiveInput] = room.makeAction("input");
