@@ -90,7 +90,7 @@
             const roomName = await hostGame(
                 // onPlayerJoin
                 (peerId, control) => {
-                    connecthandler(control)
+                    connecthandler(control, peerId)
                     document.getElementById('player-count').textContent =
                         `${players.length} player(s) connected`
                 },

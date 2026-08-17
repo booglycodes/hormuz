@@ -34,7 +34,7 @@ let max_num_players = 0
 let players = []
 
 // connecthandler is called when a phone joins (from index.html module script)
-function connecthandler(player_control) {
+function connecthandler(player_control, peerId) {
     let index = character_names.indexOf(params['p' + (players.length + 1)])
     if (index === -1) {
         index = Math.floor(Math.random() * characters.length)
@@ -42,10 +42,17 @@ function connecthandler(player_control) {
 
     let stocks = params['stocks'] === undefined ? default_stocks : parseInt(params['stocks'])
 
+    let charName = character_names[index]
+
+    // Set the control's character mapping and send labels to phone
+    if (typeof sendCharacterInfo !== 'undefined') {
+        sendCharacterInfo(peerId, charName)
+    }
+
     let player = create_player(
         characters[index],
         player_control,
-        character_names[index],
+        charName,
         spawn_positions[players.length % spawn_positions.length],
         ability_draw_locations[players.length % ability_draw_locations.length]
     )

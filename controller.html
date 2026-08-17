@@ -50,6 +50,9 @@
     const FLOAT_DURATION = 800 // ms
     const FLOAT_RISE = 60 // px total rise
 
+    // Labels from host (per character)
+    let gestureLabels = { up: "ATK 1", left: "ATK 2", right: "ATK 3", down: "ATK 4", hold: "ATK 5" }
+
     function spawnFloater(type) {
       const gCx = canvas.width * 0.75
       const gCy = canvas.height * 0.5
@@ -58,11 +61,11 @@
       let text, color
       switch (type) {
         case "tap": text = "JUMP"; color = "#22c55e"; break
-        case "hold": text = "ATK 5"; color = "#a855f7"; break
-        case "up": text = "↑"; color = "#3b82f6"; break
-        case "down": text = "↓"; color = "#3b82f6"; break
-        case "left": text = "←"; color = "#3b82f6"; break
-        case "right": text = "→"; color = "#3b82f6"; break
+        case "hold": text = gestureLabels.hold || "ATK 5"; color = "#a855f7"; break
+        case "up": text = gestureLabels.up || "↑"; color = "#3b82f6"; break
+        case "down": text = gestureLabels.down || "↓"; color = "#3b82f6"; break
+        case "left": text = gestureLabels.left || "←"; color = "#3b82f6"; break
+        case "right": text = gestureLabels.right || "→"; color = "#3b82f6"; break
         default: text = type; color = "#3b82f6"
       }
 
@@ -304,6 +307,12 @@
       const room = joinRoom({ appId: "supermashbruddas-phone" }, roomName)
       const [sendInput, _receiveInput] = room.makeAction("input")
       _receiveInput(() => {})
+
+      const [_sendCharInfo, receiveCharInfo] = room.makeAction("charinfo")
+      receiveCharInfo((labels) => {
+        gestureLabels = labels
+        status = "Connected ✓"
+      })
 
       room.onPeerJoin(() => { status = "Connected ✓" })
       room.onPeerLeave(() => { status = "Host disconnected" })
