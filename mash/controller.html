@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Controller</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #080b12;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <script type="module">
+    const canvas = document.getElementById("c")
+    const ctx = canvas.getContext("2d")
+
+    function resize() {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    window.addEventListener("resize", resize)
+    resize()
+
+    // === STATE ===
+    let phase = "lobby" // lobby, select, playing, gameover
+    let characters = []
+    let selectedIndex = 0
+    let locked = false
+    let status = "Connecting..."
+    let gestureLabels = { up: "ATK 1", left: "ATK 2", right: "ATK 3", down: "ATK 4", hold: "ATK 5" }
+
+    // === INPUT STATE (game phase) ===
+    let input = { dx: 0, dy: 0, jump: false, b0: false, b1: false, b2: false, b3: false, b4: false }
+    let joystickKnob = { x: 0, y: 0 }
+    let joystickTouch = null
+
+    // Gesture state
+    const SWIPE_THRESHOLD = 30
+    const TAP_TIME = 200
+    const HOLD_TIME = 300
+    let gestureTouch = null
+    let gestureStart = null
+    let gestureTriggered = false
+    let holdActive = false
+
+    // Floaters
+    const floaters = []
+    const FLOAT_DURATION = 800
+    const FLOAT_RISE = 60
+    let pendingClears = []
+
+    // Character images
+    const charImages = {}
+    const charImgSrcs = {
+      trump: 'images/trump.png',
+      stoner: 'images/stoner.png',
+      faceman: 'images/faceman.png',
+      knigh: 'images/knight.png',
+      utopian: 'images/utopian.png',
+      shrek: 'images/shrek.png',
+      monke: 'images/monke.png'
+    }
+    for (const [name, src] of Object.entries(charImgSrcs)) {
+      const img = new Image()
+      img.src = src
+      charImages[name] = img
+    }
+
+    // === SELECT PHASE TOUCH ===
+    let selectTouch = null
+    let selectStartX = 0
+
+    function handleSelectTouch(e) {
+      if (locked) return
+      if (e.type === "touchstart") {
+        selectTouch = e.changedTouches[0].identifier
+        selectStartX = e.changedTouches[0].clientX
+      } else if (e.type === "touchend") {
+        for (const t of e.changedTouches) {
+          if (t.identifier === selectTouch) {
+            const dx = t.clientX - selectStartX
+            if (Math.abs(dx) > 40) {
+              // Swipe
+              if (dx > 0) selectedIndex = (selectedIndex + 1) % characters.length
+              else selectedIndex = (selectedIndex - 1 + characters.length) % characters.length
+              sendSelectMsg({ type: "browse", char: characters[selectedIndex] })
+            } else {
+              // Tap = lock in
+              locked = true
+              sendSelectMsg({ type: "lock", char: characters[selectedIndex] })
+            }
+            selectTouch = null
+          }
+        }
+      }
+    }
+
+    // === GAME PHASE TOUCH ===
+    function isLeftHalf(x) { return x < canvas.width / 2 }
+
+    function handleGameTouch(e) {
+      if (e.type === "touchstart") {
+        e.preventDefault()
+        for (const touch of e.changedTouches) {
+          if (isLeftHalf(touch.clientX) && joystickTouch === null) {
+            joystickTouch = touch.identifier
+            updateJoystick(touch.clientX, touch.clientY)
+          } else if (!isLeftHalf(touch.clientX) && gestureTouch === null) {
+            gestureTouch = touch.identifier
+            gestureStart = { x: touch.clientX, y: touch.clientY, time: performance.now() }
+            gestureTriggered = false
+            holdActive = false
+          }
+        }
+      } else if (e.type === "touchmove") {
+        e.preventDefault()
+        for (const touch of e.changedTouches) {
+          if (touch.identifier === joystickTouch) {
+            updateJoystick(touch.clientX, touch.clientY)
+          } else if (touch.identifier === gestureTouch && gestureStart && !gestureTriggered) {
+            const dx = touch.clientX - gestureStart.x
+            const dy = touch.clientY - gestureStart.y
+            if (Math.hypot(dx, dy) > SWIPE_THRESHOLD) {
+              if (Math.abs(dx) > Math.abs(dy)) triggerGesture(dx > 0 ? "right" : "left")
+              else triggerGesture(dy > 0 ? "down" : "up")
+              gestureTriggered = true
+            }
+          }
+        }
+      } else if (e.type === "touchend" || e.type === "touchcancel") {
+        for (const touch of e.changedTouches) {
+          if (touch.identifier === joystickTouch) {
+            joystickTouch = null
+            joystickKnob = { x: 0, y: 0 }
+            input.dx = 0; input.dy = 0
+          } else if (touch.identifier === gestureTouch) {
+            if (!gestureTriggered && gestureStart) {
+              const elapsed = performance.now() - gestureStart.time
+              if (elapsed < TAP_TIME) triggerGesture("tap")
+            }
+            gestureTouch = null
+            gestureStart = null
+            if (holdActive) { input.b4 = false; holdActive = false }
+          }
+        }
+      }
+    }
+
+    function updateJoystick(cx, cy) {
+      const centerX = canvas.width * 0.22
+      const centerY = canvas.height * 0.5
+      const maxDist = Math.min(canvas.width, canvas.height) * 0.13
+      let dx = cx - centerX
+      let dy = cy - centerY
+      const dist = Math.hypot(dx, dy)
+      if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist }
+      joystickKnob = { x: dx, y: dy }
+      input.dx = dx / maxDist
+      input.dy = dy / maxDist
+    }
+
+    function spawnFloater(type) {
+      const gCx = canvas.width * 0.75
+      const gCy = canvas.height * 0.5
+      const jitter = (Math.random() - 0.5) * 40
+      let text, color
+      switch (type) {
+        case "tap": text = "JUMP"; color = "#22c55e"; break
+        case "hold": text = gestureLabels.hold || "ATK 5"; color = "#a855f7"; break
+        case "up": text = gestureLabels.up || "↑"; color = "#3b82f6"; break
+        case "down": text = gestureLabels.down || "↓"; color = "#3b82f6"; break
+        case "left": text = gestureLabels.left || "←"; color = "#3b82f6"; break
+        case "right": text = gestureLabels.right || "→"; color = "#3b82f6"; break
+        default: text = type; color = "#3b82f6"
+      }
+      floaters.push({ text, color, x: gCx + jitter, y: gCy + (Math.random() - 0.5) * 30, born: performance.now() })
+    }
+
+    function triggerGesture(type) {
+      spawnFloater(type)
+      if (type === "tap") { input.jump = true; pendingClears.push("jump") }
+      else if (type === "up") { input.b0 = true; pendingClears.push("b0") }
+      else if (type === "left") { input.b1 = true; pendingClears.push("b1") }
+      else if (type === "right") { input.b2 = true; pendingClears.push("b2") }
+      else if (type === "down") { input.b3 = true; pendingClears.push("b3") }
+    }
+
+    function checkHold() {
+      if (gestureTouch !== null && gestureStart && !gestureTriggered && !holdActive) {
+        if (performance.now() - gestureStart.time > HOLD_TIME) {
+          holdActive = true
+          input.b4 = true
+          spawnFloater("hold")
+        }
+      }
+    }
+
+    // === UNIFIED TOUCH DISPATCHER ===
+    for (const evt of ["touchstart", "touchmove", "touchend", "touchcancel"]) {
+      canvas.addEventListener(evt, e => {
+        e.preventDefault()
+        if (phase === "select") handleSelectTouch(e)
+        else if (phase === "playing") handleGameTouch(e)
+      }, { passive: false })
+    }
+
+    // === RENDERING ===
+    function draw() {
+      resize()
+      const now = performance.now()
+      const w = canvas.width
+      const h = canvas.height
+
+      ctx.fillStyle = "#080b12"
+      ctx.fillRect(0, 0, w, h)
+
+      if (phase === "lobby") drawLobby()
+      else if (phase === "select") drawSelectScreen()
+      else if (phase === "playing") { checkHold(); drawGameControls(now) }
+      else if (phase === "gameover") drawGameoverScreen()
+
+      requestAnimationFrame(draw)
+    }
+
+    function drawLobby() {
+      ctx.fillStyle = "#9ca3af"
+      ctx.font = `${canvas.height * 0.05}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText(status, canvas.width / 2, canvas.height / 2)
+    }
+
+    function drawSelectScreen() {
+      const w = canvas.width, h = canvas.height
+      const cx = w / 2, cy = h * 0.45
+
+      // Character name
+      const charName = characters[selectedIndex] || "???"
+      ctx.fillStyle = "white"
+      ctx.font = `bold ${h * 0.08}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText(charName.toUpperCase(), cx, h * 0.12)
+
+      // Character image
+      const img = charImages[charName]
+      const imgSize = Math.min(w * 0.5, h * 0.5)
+      if (img && img.complete) {
+        ctx.drawImage(img, cx - imgSize / 2, cy - imgSize / 2, imgSize, imgSize)
+      }
+
+      // Arrows
+      ctx.fillStyle = "#3b82f6"
+      ctx.font = `bold ${h * 0.1}px system-ui`
+      ctx.fillText("‹", w * 0.08, cy)
+      ctx.fillText("›", w * 0.92, cy)
+
+      // Instructions
+      ctx.fillStyle = locked ? "#22c55e" : "#9ca3af"
+      ctx.font = `${h * 0.04}px system-ui`
+      const msg = locked ? "✓ LOCKED IN" : "Swipe to browse • Tap to lock in"
+      ctx.fillText(msg, cx, h * 0.88)
+
+      // Index dots
+      const dotR = 6
+      const dotSpacing = 20
+      const dotsX = cx - ((characters.length - 1) * dotSpacing) / 2
+      for (let i = 0; i < characters.length; i++) {
+        ctx.beginPath()
+        ctx.arc(dotsX + i * dotSpacing, h * 0.78, dotR, 0, Math.PI * 2)
+        ctx.fillStyle = i === selectedIndex ? "#3b82f6" : "#334155"
+        ctx.fill()
+      }
+    }
+
+    function drawGameControls(now) {
+      const w = canvas.width, h = canvas.height
+
+      // Divider
+      ctx.strokeStyle = "#1e293b"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(w / 2, 0)
+      ctx.lineTo(w / 2, h)
+      ctx.stroke()
+
+      // Joystick
+      const jCx = w * 0.22, jCy = h * 0.5
+      const jR = Math.min(w, h) * 0.18
+
+      ctx.beginPath()
+      ctx.arc(jCx, jCy, jR, 0, Math.PI * 2)
+      ctx.fillStyle = "#1e293b"
+      ctx.fill()
+      ctx.strokeStyle = "#334155"
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      const knobR = jR * 0.38
+      ctx.beginPath()
+      ctx.arc(jCx + joystickKnob.x, jCy + joystickKnob.y, knobR, 0, Math.PI * 2)
+      ctx.fillStyle = joystickTouch !== null ? "#3b82f6" : "#1d4ed8"
+      ctx.fill()
+      if (joystickTouch !== null) {
+        ctx.shadowColor = "#3b82f6"; ctx.shadowBlur = 20; ctx.fill(); ctx.shadowBlur = 0
+      }
+
+      // Gesture area hint
+      const gCx = w * 0.75, gCy = h * 0.5
+      ctx.fillStyle = "#1e293b22"
+      ctx.beginPath()
+      ctx.arc(gCx, gCy, Math.min(w * 0.2, h * 0.35), 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.fillStyle = "#334155"
+      ctx.font = `${h * 0.025}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("swipe / tap", gCx, gCy + Math.min(w * 0.2, h * 0.35) + h * 0.04)
+
+      // Floaters
+      const fontSize = Math.round(h * 0.08)
+      ctx.font = `bold ${fontSize}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+
+      for (let i = floaters.length - 1; i >= 0; i--) {
+        const f = floaters[i]
+        const age = now - f.born
+        if (age > FLOAT_DURATION) { floaters.splice(i, 1); continue }
+        const t = age / FLOAT_DURATION
+        ctx.globalAlpha = 1 - t
+        ctx.fillStyle = f.color
+        ctx.fillText(f.text, f.x, f.y - t * FLOAT_RISE)
+        ctx.globalAlpha = 1
+      }
+    }
+
+    function drawGameoverScreen() {
+      ctx.fillStyle = "#9ca3af"
+      ctx.font = `${canvas.height * 0.06}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("Waiting for next round...", canvas.width / 2, canvas.height / 2)
+    }
+
+    requestAnimationFrame(draw)
+
+    // === NETWORKING ===
+    const params = new URLSearchParams(window.location.search)
+    const roomName = params.get("room")
+    let sendInput = null
+    let sendSelectMsg = () => {}
+
+    if (!roomName) {
+      status = "No room. Scan QR to join."
+    } else {
+      startController(roomName)
+    }
+
+    async function startController(roomName) {
+      const { joinRoom } = await import("https://esm.run/trystero@0.22.0")
+
+      const room = joinRoom({ appId: "supermashbruddas-phone" }, roomName)
+      const [_sendInput, _receiveInput] = room.makeAction("input")
+      const [_sendPhase, receivePhase] = room.makeAction("phase")
+      const [_sendCharInfo, receiveCharInfo] = room.makeAction("charinfo")
+      const [_sendCharList, receiveCharList] = room.makeAction("charlist")
+      const [_sendSelect, _receiveSelect] = room.makeAction("select")
+
+      sendInput = _sendInput
+      sendSelectMsg = _sendSelect
+      _receiveInput(() => {})
+      _receiveSelect(() => {})
+
+      receivePhase((data) => {
+        phase = data.phase
+        if (phase === "select") {
+          locked = false
+          selectedIndex = 0
+        }
+      })
+
+      receiveCharInfo((data) => {
+        if (data.labels) gestureLabels = data.labels
+        if (data.phase) phase = data.phase
+      })
+
+      receiveCharList((data) => {
+        if (data.characters) {
+          characters = data.characters
+          selectedIndex = 0
+        }
+      })
+
+      room.onPeerJoin(() => { status = "Connected ✓" })
+      room.onPeerLeave(() => { status = "Host disconnected" })
+
+      // Send game input at 30Hz
+      setInterval(() => {
+        if (phase === "playing" && sendInput) {
+          sendInput({ ...input })
+          for (const key of pendingClears) input[key] = false
+          pendingClears.length = 0
+        }
+      }, 33)
+    }
+  </script>
+</body>
+</html>
