@@ -13,10 +13,10 @@ const CHARACTER_MAPPINGS = {
     labels: { up: "BIGLY PUNCH", left: "THROW ORANGE", right: "THROW ORANGE", down: "BUILD WALL", hold: "RED STATE" }
   },
   stoner: {
-    // up -> drugs (0), left -> bigBongo (1), right -> high life (2), down -> free weed zone (3), hold -> pot brownie (4)
-    b0: 0, b1: 1, b2: 2, b3: 3, b4: 4,
+    // up -> high life (2), left -> drugs (0), right -> free weed zone (3), down -> bigBongo (1), hold -> pot brownie (4)
+    b0: 2, b1: 0, b2: 3, b3: 1, b4: 4,
     numAbilities: 5,
-    labels: { up: "DRUGS", left: "BIGBONGO", right: "HIGH LIFE", down: "FREE WEED", hold: "POT BROWNIE" }
+    labels: { up: "HIGH LIFE", left: "DRUGS", right: "FREE WEED", down: "BIGBONGO", hold: "POT BROWNIE" }
   },
   faceman: {
     // up -> eat (0), left/right -> rushdown (1), down -> belch (2)
@@ -30,22 +30,22 @@ const CHARACTER_MAPPINGS = {
     labels: { up: "EAT", left: "RUSHDOWN", right: "RUSHDOWN", down: "BELCH", hold: "" }
   },
   knigh: {
-    // up -> honour slash (0), left -> fire (1), right -> ice (2), down -> lightning (3), hold -> physics homework (4)
-    b0: 0, b1: 1, b2: 2, b3: 3, b4: 4,
+    // up -> lightning (3), left -> fire (1), right -> ice (2), down -> honour slash (0), hold -> physics homework (4)
+    b0: 3, b1: 1, b2: 2, b3: 0, b4: 4,
     numAbilities: 5,
-    labels: { up: "HONOUR SLASH", left: "FIRE", right: "ICE", down: "LIGHTNING", hold: "PHYSICS HW" }
+    labels: { up: "LIGHTNING", left: "FIRE", right: "ICE", down: "HONOUR SLASH", hold: "PHYSICS HW" }
   },
   utopian: {
-    // up -> shock (0), left -> generator (1), right -> drones (2), down -> turret (3), hold -> teleport (4)
-    b0: 0, b1: 1, b2: 2, b3: 3, b4: 4,
+    // up -> turret (3), left -> generator (1), right -> drones (2), down -> shock (0), hold -> teleport (4)
+    b0: 3, b1: 1, b2: 2, b3: 0, b4: 4,
     numAbilities: 5,
-    labels: { up: "SHOCK", left: "GENERATOR", right: "DRONES", down: "TURRET", hold: "TELEPORT" }
+    labels: { up: "TURRET", left: "GENERATOR", right: "DRONES", down: "SHOCK", hold: "TELEPORT" }
   },
   shrek: {
-    // up -> shrekgrab (0), left -> shrekdown (1), right -> donkey (2), down -> shrekstitution (3)
-    b0: 0, b1: 1, b2: 2, b3: 3, b4: -1,
+    // up -> shrekgrab (0), left -> shrekstitution (3), right -> shrekstitution (3), down -> shrekdown (1), hold -> donkey (2)
+    b0: 0, b1: 3, b2: 3, b3: 1, b4: 2,
     numAbilities: 4,
-    labels: { up: "GRAB", left: "SHREKDOWN", right: "DONKEY", down: "SHREKSTITUTION", hold: "" }
+    labels: { up: "GRAB", left: "SHREKSTITUTION", right: "SHREKSTITUTION", down: "SHREKDOWN", hold: "DONKEY" }
   },
   monke: {
     // up -> grab (0)
