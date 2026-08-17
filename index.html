@@ -1,820 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Hormuz</title>
-
-  <style>
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-      background: #080b12;
-      color: white;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* === MODE SELECT === */
-    #mode-select {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 24px;
-    }
-
-    #mode-select h1 {
-      margin: 0;
-      font-size: 28px;
-      letter-spacing: -0.5px;
-    }
-
-    .mode-buttons {
-      display: flex;
-      gap: 16px;
-    }
-
-    .mode-btn {
-      padding: 16px 28px;
-      font-size: 16px;
-      font-weight: 500;
-      color: white;
-      background: #1e293b;
-      border: 2px solid #334155;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .mode-btn:hover {
-      background: #2563eb;
-      border-color: #2563eb;
-    }
-
-    .mode-btn .mode-icon {
-      display: block;
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-
-    .mode-btn .mode-desc {
-      display: block;
-      font-size: 12px;
-      color: #9ca3af;
-      margin-top: 4px;
-    }
-
-    .mode-btn:hover .mode-desc {
-      color: #bfdbfe;
-    }
-
-    /* === GAME UI === */
-    #game-view {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
-
-    #game-ui {
-      width: min(900px, 94vw);
-      padding: 18px 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    #status {
-      color: #9ca3af;
-      font-size: 14px;
-      margin-right: auto;
-    }
-
-    button {
-      font: inherit;
-      padding: 9px 14px;
-      color: white;
-      background: #2563eb;
-      border: none;
-      cursor: pointer;
-      border-radius: 8px;
-    }
-
-    button:hover { background: #1d4ed8; }
-    button:disabled { opacity: 0.5; cursor: default; }
-
-    input {
-      font: inherit;
-      width: 150px;
-      padding: 9px 11px;
-      background: #151a24;
-      color: white;
-      outline: none;
-      border-radius: 8px;
-      border: 1px solid #303746;
-    }
-
-    #game {
-      position: relative;
-      width: min(900px, 94vw);
-      aspect-ratio: 16 / 9;
-      background-color: #0f172a;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-      background-size: 40px 40px;
-      border: 2px solid #293244;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    #qr-container {
-      position: absolute;
-      bottom: 16px;
-      right: 16px;
-      background: white;
-      padding: 8px;
-      border-radius: 8px;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-    }
-
-    #qr-container canvas { display: block; }
-
-    #qr-label {
-      font-size: 11px;
-      color: #333;
-      text-align: center;
-    }
-
-    .player {
-      position: absolute;
-      width: 32px;
-      height: 32px;
-      transform: translate(-50%, -50%);
-      border-radius: 6px;
-      pointer-events: none;
-      will-change: left, top;
-    }
-
-    .player-label {
-      position: absolute;
-      left: 50%;
-      bottom: 100%;
-      transform: translateX(-50%);
-      margin-bottom: 5px;
-      font-size: 10px;
-      color: #d1d5db;
-      white-space: nowrap;
-      user-select: none;
-    }
-
-    #help {
-      margin-top: 10px;
-      color: #64748b;
-      font-size: 13px;
-    }
-
-    /* === CLIENT (MOBILE) UI === */
-    #client-screen {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      padding: 20px;
-      gap: 20px;
-    }
-
-    #client-status {
-      font-size: 16px;
-      color: #9ca3af;
-    }
-
-    #joystick-area {
-      position: relative;
-      width: 200px;
-      height: 200px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
-      border: 2px solid #334155;
-      touch-action: none;
-    }
-
-    #joystick-base {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      border: 1px solid #475569;
-    }
-
-    #joystick-knob {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-      transition: box-shadow 0.1s;
-    }
-
-    #joystick-knob.active {
-      box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
-    }
-
-    /* Join screen for mobile */
-    #join-screen {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      padding: 30px;
-      gap: 16px;
-    }
-
-    #join-screen h2 {
-      margin: 0;
-      font-size: 22px;
-    }
-
-    /* Online mode join UI */
-    #online-join {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SuperMashBruddas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: #444;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        #qr-overlay {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        #qr-overlay img { display: block; }
+        #qr-label {
+            font-family: system-ui, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+        #player-count {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            font-family: system-ui, sans-serif;
+            font-size: 16px;
+            color: white;
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+    </style>
 </head>
-
 <body>
-
-  <!-- MODE SELECT (PC) -->
-  <div id="mode-select">
-    <h1>Hormuz</h1>
-    <div class="mode-buttons">
-      <button class="mode-btn" id="btn-local">
-        <span class="mode-icon">📱</span>
-        Local Controllers
-        <span class="mode-desc">Phones as joysticks via QR</span>
-      </button>
-      <button class="mode-btn" id="btn-online">
-        <span class="mode-icon">🌐</span>
-        Online PvP
-        <span class="mode-desc">WASD multiplayer</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- GAME VIEW -->
-  <div id="game-view">
-    <div id="game-ui">
-      <div id="status"></div>
-      <div id="online-join">
-        <input id="roomInput" value="wasd-demo" placeholder="Room name" />
-        <button id="joinRoomBtn">Join</button>
-      </div>
-    </div>
-    <div id="game">
-      <div id="qr-container">
-        <canvas id="qr-canvas"></canvas>
+    <canvas id="canvas" width="2000" height="1100"></canvas>
+    <div id="qr-overlay">
+        <img id="qr-img" width="150" height="150" />
         <div id="qr-label">Scan to join</div>
-      </div>
     </div>
-    <div id="help"></div>
-  </div>
-
-  <!-- CLIENT CONNECTING SCREEN (MOBILE) -->
-  <div id="join-screen">
-    <h2>Connecting...</h2>
-  </div>
-
-  <!-- CLIENT JOYSTICK VIEW (MOBILE) -->
-  <div id="client-screen">
-    <div id="client-status">Connected</div>
-    <div id="joystick-area">
-      <div id="joystick-base"></div>
-      <div id="joystick-knob"></div>
-    </div>
-  </div>
-
-  <script type="module">
-    console.log("[hormuz] build 8 — dual mode");
-
-    import { joinRoom } from "https://esm.run/trystero@0.22.0";
-    import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
-
-    const APP_ID = "wasd-square-game";
-    const ROOM_CONFIG = { appId: APP_ID };
-    const WORLD = { width: 900, height: 506 };
-    const PLAYER_SIZE = 32;
-    const SPEED = 280;
-    const STATE_RATE = 33;
-
-    const players = {};
-    const remoteInputs = {};
-    const playerElements = new Map();
-
-    let room = null;
-    let myId = null;
-    let sendState = null;
-    let sendInput = null;
-
-    // Detect if mobile
-    const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent)
-      || (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
-
-    function stringToColor(str) {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      const h = Math.abs(hash) % 360;
-      return `hsl(${h}, 85%, 55%)`;
-    }
-
-    function createPlayer() {
-      return {
-        x: WORLD.width / 2 + (Math.random() - 0.5) * 150,
-        y: WORLD.height / 2 + (Math.random() - 0.5) * 150
-      };
-    }
-
-    function createPlayerElement(id, gameEl, isMe) {
-      const element = document.createElement("div");
-      element.className = "player";
-      const color = isMe ? "hsl(215, 90%, 60%)" : stringToColor(id);
-      element.style.background = color;
-      element.style.boxShadow = `0 0 12px ${color}`;
-
-      const label = document.createElement("div");
-      label.className = "player-label";
-      label.textContent = isMe ? "YOU" : id.slice(0, 6);
-      element.appendChild(label);
-      gameEl.appendChild(element);
-      playerElements.set(id, element);
-      return element;
-    }
-
-    function renderPlayer(id, gameEl, isMe) {
-      const player = players[id];
-      if (!player) return;
-      let element = playerElements.get(id);
-      if (!element) element = createPlayerElement(id, gameEl, isMe);
-      element.style.left = `${(player.x / WORLD.width) * 100}%`;
-      element.style.top = `${(player.y / WORLD.height) * 100}%`;
-    }
-
-    function movePlayer(player, input, dt) {
-      let dx = input.dx || 0;
-      let dy = input.dy || 0;
-
-      if (input.w) dy -= 1;
-      if (input.s) dy += 1;
-      if (input.a) dx -= 1;
-      if (input.d) dx += 1;
-
-      if (dx !== 0 || dy !== 0) {
-        const length = Math.hypot(dx, dy);
-        if (length > 1) { dx /= length; dy /= length; }
-      }
-
-      player.x += dx * SPEED * dt;
-      player.y += dy * SPEED * dt;
-
-      const half = PLAYER_SIZE / 2;
-      player.x = Math.max(half, Math.min(WORLD.width - half, player.x));
-      player.y = Math.max(half, Math.min(WORLD.height - half, player.y));
-    }
-
-    // ======== LOCAL MODE — Host (spectator + QR) ========
-    function startLocalHost() {
-      const game = document.getElementById("game");
-      const status = document.getElementById("status");
-      const qrContainer = document.getElementById("qr-container");
-
-      const roomName = Math.random().toString(36).slice(2, 12);
-
-      room = joinRoom(ROOM_CONFIG, roomName);
-      myId = room.selfId;
-
-      const [_sendInput, receiveInput] = room.makeAction("input");
-      const [_sendState, receiveState] = room.makeAction("state");
-      sendState = _sendState;
-      receiveState(() => {});
-
-      receiveInput((input, peerId) => {
-        remoteInputs[peerId] = input;
-        if (!players[peerId]) {
-          players[peerId] = createPlayer();
-        }
-      });
-
-      room.onPeerJoin(peerId => {
-        players[peerId] = createPlayer();
-        remoteInputs[peerId] = { dx: 0, dy: 0 };
-        sendState(structuredClone(players));
-        status.textContent = `LOCAL HOST — ${Object.keys(players).length} player(s)`;
-      });
-
-      room.onPeerLeave(peerId => {
-        delete players[peerId];
-        delete remoteInputs[peerId];
-        const el = playerElements.get(peerId);
-        if (el) { el.remove(); playerElements.delete(peerId); }
-        sendState(structuredClone(players));
-        status.textContent = `LOCAL HOST — ${Object.keys(players).length} player(s)`;
-      });
-
-      status.textContent = `LOCAL HOST — 0 player(s)`;
-
-      // Generate QR code
-      const joinUrl = `${window.location.origin}${window.location.pathname}?mode=local&room=${encodeURIComponent(roomName)}`;
-      const qrCanvas = document.getElementById("qr-canvas");
-      QRCode.toCanvas(qrCanvas, joinUrl, {
-        width: 140,
-        margin: 1,
-        color: { dark: "#000000", light: "#ffffff" }
-      });
-      qrContainer.style.display = "flex";
-
-      document.getElementById("help").textContent = "Players join by scanning the QR code";
-
-      let lastTime = performance.now();
-      let lastBroadcast = performance.now();
-
-      function loop(now) {
-        const dt = Math.min((now - lastTime) / 1000, 0.05);
-        lastTime = now;
-
-        for (const id of Object.keys(remoteInputs)) {
-          if (!players[id]) continue;
-          movePlayer(players[id], remoteInputs[id], dt);
-          renderPlayer(id, game, false);
-        }
-
-        for (const [id, el] of playerElements) {
-          if (!players[id]) { el.remove(); playerElements.delete(id); }
-        }
-
-        if (now - lastBroadcast >= STATE_RATE) {
-          if (sendState) sendState(structuredClone(players));
-          lastBroadcast = now;
-        }
-
-        requestAnimationFrame(loop);
-      }
-      requestAnimationFrame(loop);
-    }
-
-    // ======== LOCAL MODE — Client (mobile joystick) ========
-    function startLocalClient(roomName) {
-      const joinScreen = document.getElementById("join-screen");
-      const clientScreen = document.getElementById("client-screen");
-      const clientStatus = document.getElementById("client-status");
-
-      joinScreen.style.display = "none";
-      clientScreen.style.display = "flex";
-
-      room = joinRoom(ROOM_CONFIG, roomName);
-      myId = room.selfId;
-
-      const [_sendInput, receiveInput] = room.makeAction("input");
-      sendInput = _sendInput;
-      receiveInput(() => {});
-
-      const [_sendState, receiveState] = room.makeAction("state");
-      receiveState(() => {});
-
-      room.onPeerJoin(() => {
-        clientStatus.textContent = "Connected ✓";
-      });
-
-      room.onPeerLeave(() => {
-        clientStatus.textContent = "Host disconnected";
-      });
-
-      clientStatus.textContent = "Connecting...";
-
-      // Joystick
-      const joystickArea = document.getElementById("joystick-area");
-      const knob = document.getElementById("joystick-knob");
-      const maxDist = 65;
-      let currentInput = { dx: 0, dy: 0 };
-      let activeTouch = null;
-
-      function updateKnob(cx, cy) {
-        const rect = joystickArea.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        let dx = cx - centerX;
-        let dy = cy - centerY;
-        const dist = Math.hypot(dx, dy);
-        if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
-        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-        knob.classList.add("active");
-        currentInput.dx = dx / maxDist;
-        currentInput.dy = dy / maxDist;
-      }
-
-      function resetKnob() {
-        knob.style.transform = "translate(-50%, -50%)";
-        knob.classList.remove("active");
-        currentInput.dx = 0;
-        currentInput.dy = 0;
-        activeTouch = null;
-      }
-
-      joystickArea.addEventListener("touchstart", e => {
-        e.preventDefault();
-        const touch = e.changedTouches[0];
-        activeTouch = touch.identifier;
-        updateKnob(touch.clientX, touch.clientY);
-      }, { passive: false });
-
-      joystickArea.addEventListener("touchmove", e => {
-        e.preventDefault();
-        for (const touch of e.changedTouches) {
-          if (touch.identifier === activeTouch) { updateKnob(touch.clientX, touch.clientY); break; }
-        }
-      }, { passive: false });
-
-      joystickArea.addEventListener("touchend", e => {
-        for (const touch of e.changedTouches) {
-          if (touch.identifier === activeTouch) { resetKnob(); break; }
-        }
-      });
-
-      joystickArea.addEventListener("touchcancel", () => resetKnob());
-
-      setInterval(() => {
-        if (sendInput) sendInput({ dx: currentInput.dx, dy: currentInput.dy });
-      }, 33);
-    }
-
-    // ======== ONLINE MODE — Host ========
-    function startOnlineHost(roomName) {
-      const game = document.getElementById("game");
-      const status = document.getElementById("status");
-
-      room = joinRoom(ROOM_CONFIG, roomName);
-      myId = room.selfId;
-
-      const [_sendInput, receiveInput] = room.makeAction("input");
-      const [_sendState, receiveState] = room.makeAction("state");
-      sendState = _sendState;
-      sendInput = _sendInput;
-      receiveState(() => {});
-
-      players[myId] = createPlayer();
-
-      receiveInput((input, peerId) => {
-        remoteInputs[peerId] = input;
-        if (!players[peerId]) {
-          players[peerId] = createPlayer();
-        }
-      });
-
-      room.onPeerJoin(peerId => {
-        players[peerId] = createPlayer();
-        remoteInputs[peerId] = { w: false, a: false, s: false, d: false };
-        sendState(structuredClone(players));
-        status.textContent = `ONLINE HOST — ${Object.keys(players).length} player(s)`;
-      });
-
-      room.onPeerLeave(peerId => {
-        delete players[peerId];
-        delete remoteInputs[peerId];
-        const el = playerElements.get(peerId);
-        if (el) { el.remove(); playerElements.delete(peerId); }
-        sendState(structuredClone(players));
-        status.textContent = `ONLINE HOST — ${Object.keys(players).length} player(s)`;
-      });
-
-      status.textContent = `ONLINE HOST — 1 player(s)`;
-      document.getElementById("help").textContent = "WASD to move — share room name with friends";
-
-      // Keyboard
-      const keys = { w: false, a: false, s: false, d: false };
-      window.addEventListener("keydown", e => {
-        const k = e.key.toLowerCase();
-        if (k in keys) { keys[k] = true; e.preventDefault(); }
-      });
-      window.addEventListener("keyup", e => {
-        const k = e.key.toLowerCase();
-        if (k in keys) { keys[k] = false; e.preventDefault(); }
-      });
-
-      let lastTime = performance.now();
-      let lastBroadcast = performance.now();
-
-      function loop(now) {
-        const dt = Math.min((now - lastTime) / 1000, 0.05);
-        lastTime = now;
-
-        movePlayer(players[myId], keys, dt);
-        renderPlayer(myId, game, true);
-
-        for (const id of Object.keys(remoteInputs)) {
-          if (!players[id]) continue;
-          movePlayer(players[id], remoteInputs[id], dt);
-          renderPlayer(id, game, false);
-        }
-
-        for (const [id, el] of playerElements) {
-          if (!players[id]) { el.remove(); playerElements.delete(id); }
-        }
-
-        if (now - lastBroadcast >= STATE_RATE) {
-          if (sendState) sendState(structuredClone(players));
-          lastBroadcast = now;
-        }
-
-        requestAnimationFrame(loop);
-      }
-      requestAnimationFrame(loop);
-    }
-
-    // ======== ONLINE MODE — Client ========
-    function startOnlineClient(roomName) {
-      const game = document.getElementById("game");
-      const status = document.getElementById("status");
-
-      room = joinRoom(ROOM_CONFIG, roomName);
-      myId = room.selfId;
-
-      const [_sendInput, receiveInput] = room.makeAction("input");
-      sendInput = _sendInput;
-      receiveInput(() => {});
-
-      const [_sendState, receiveState] = room.makeAction("state");
-      receiveState(state => {
-        for (const id of Object.keys(state)) {
-          if (id === myId) continue;
-          if (!players[id]) players[id] = { ...state[id] };
-          serverStates[id] = { x: state[id].x, y: state[id].y };
-        }
-        for (const id of Object.keys(players)) {
-          if (id !== myId && !state[id]) {
-            delete players[id];
-            delete serverStates[id];
-          }
-        }
-      });
-
-      const serverStates = {};
-      players[myId] = createPlayer();
-
-      room.onPeerJoin(() => {
-        status.textContent = `ONLINE — Connected`;
-      });
-
-      room.onPeerLeave(peerId => {
-        delete players[peerId];
-        delete serverStates[peerId];
-      });
-
-      status.textContent = "ONLINE — Connecting...";
-      document.getElementById("help").textContent = "WASD to move";
-
-      // Keyboard
-      const keys = { w: false, a: false, s: false, d: false };
-      let lastSentKeys = { w: false, a: false, s: false, d: false };
-
-      window.addEventListener("keydown", e => {
-        const k = e.key.toLowerCase();
-        if (k in keys) { keys[k] = true; e.preventDefault(); }
-      });
-      window.addEventListener("keyup", e => {
-        const k = e.key.toLowerCase();
-        if (k in keys) { keys[k] = false; e.preventDefault(); }
-      });
-
-      let lastTime = performance.now();
-      let lastInputSent = performance.now();
-
-      function loop(now) {
-        const dt = Math.min((now - lastTime) / 1000, 0.05);
-        lastTime = now;
-
-        movePlayer(players[myId], keys, dt);
-        renderPlayer(myId, game, true);
-
-        for (const id of Object.keys(players)) {
-          if (id === myId) continue;
-          if (serverStates[id]) {
-            const lerpFactor = Math.min(1, dt * 15);
-            players[id].x += (serverStates[id].x - players[id].x) * lerpFactor;
-            players[id].y += (serverStates[id].y - players[id].y) * lerpFactor;
-          }
-          renderPlayer(id, game, false);
-        }
-
-        for (const [id, el] of playerElements) {
-          if (!players[id]) { el.remove(); playerElements.delete(id); }
-        }
-
-        // Send input
-        const keysChanged = keys.w !== lastSentKeys.w || keys.a !== lastSentKeys.a ||
-                            keys.s !== lastSentKeys.s || keys.d !== lastSentKeys.d;
-        if (keysChanged || (now - lastInputSent >= 33)) {
-          sendInput({ w: keys.w, a: keys.a, s: keys.s, d: keys.d });
-          lastSentKeys = { ...keys };
-          lastInputSent = now;
-        }
-
-        requestAnimationFrame(loop);
-      }
-      requestAnimationFrame(loop);
-    }
-
-    // ======== INIT ========
-    document.addEventListener("DOMContentLoaded", () => {
-      const params = new URLSearchParams(window.location.search);
-      const mode = params.get("mode");
-      const roomFromUrl = params.get("room");
-
-      // Mobile client for local mode (from QR scan)
-      if (isMobile && mode === "local" && roomFromUrl) {
-        document.getElementById("mode-select").style.display = "none";
-        document.getElementById("join-screen").style.display = "flex";
-        startLocalClient(roomFromUrl);
-        return;
-      }
-
-      // Mobile visiting without QR — show message
-      if (isMobile) {
-        document.getElementById("mode-select").style.display = "none";
-        document.getElementById("join-screen").style.display = "flex";
-        document.querySelector("#join-screen h2").textContent = "Scan QR code to join a local game";
-        return;
-      }
-
-      // Online client joining via link
-      if (mode === "online" && roomFromUrl) {
-        document.getElementById("mode-select").style.display = "none";
-        document.getElementById("game-view").style.display = "flex";
-        startOnlineClient(roomFromUrl);
-        return;
-      }
-
-      // PC: show mode select
-      document.getElementById("btn-local").addEventListener("click", () => {
-        document.getElementById("mode-select").style.display = "none";
-        document.getElementById("game-view").style.display = "flex";
-        document.getElementById("online-join").style.display = "none";
-        startLocalHost();
-      });
-
-      document.getElementById("btn-online").addEventListener("click", () => {
-        document.getElementById("mode-select").style.display = "none";
-        document.getElementById("game-view").style.display = "flex";
-        document.getElementById("online-join").style.display = "flex";
-
-        const roomInput = document.getElementById("roomInput");
-        const joinBtn = document.getElementById("joinRoomBtn");
-
-        // Default: host a new room
-        const roomName = Math.random().toString(36).slice(2, 12);
-        roomInput.value = roomName;
-
-        // Start as host immediately
-        startOnlineHost(roomName);
-
-        // Allow joining someone else's room (reload with new room)
-        joinBtn.textContent = "Share Link";
-        joinBtn.addEventListener("click", () => {
-          const link = `${window.location.origin}${window.location.pathname}?mode=online&room=${encodeURIComponent(roomInput.value)}`;
-          navigator.clipboard.writeText(link).then(() => {
-            joinBtn.textContent = "Copied!";
-            setTimeout(() => { joinBtn.textContent = "Share Link"; }, 2000);
-          });
-        });
-      });
-    });
-  </script>
+    <div id="player-count">Waiting for players...</div>
+
+    <!-- game engine -->
+    <script type="text/javascript" src="drawing.js"></script>
+    <script type="text/javascript" src="physics.js"></script>
+    <script type="text/javascript" src="skin.js"></script>
+    <script type="text/javascript" src="map.js"></script>
+    <script type="text/javascript" src="attack.js"></script>
+    <script type="text/javascript" src="player.js"></script>
+
+    <!-- characters -->
+    <script type="text/javascript" src="trump.js"></script>
+    <script type="text/javascript" src="stoner.js"></script>
+    <script type="text/javascript" src="faceman.js"></script>
+    <script type="text/javascript" src="physics_knigh.js"></script>
+    <script type="text/javascript" src="utopian.js"></script>
+    <script type="text/javascript" src="shrek.js"></script>
+    <script type="text/javascript" src="monke.js"></script>
+
+    <!-- networking -->
+    <script type="text/javascript" src="network.js"></script>
+
+    <!-- run game -->
+    <script type="text/javascript" src="game.js"></script>
+
+    <!-- QR code generation (loaded as module) -->
+    <script type="module">
+        import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm"
+
+        // Wait for hostGame to be available and game to init
+        window.addEventListener('load', async () => {
+            const roomName = await hostGame(
+                // onPlayerJoin
+                (peerId, control) => {
+                    connecthandler(control)
+                    document.getElementById('player-count').textContent =
+                        `${players.length} player(s) connected`
+                },
+                // onPlayerLeave
+                (peerId) => {
+                    document.getElementById('player-count').textContent =
+                        `${players.length} player(s) connected`
+                }
+            )
+
+            // Generate QR
+            const url = getQRUrl(roomName)
+            console.log("[hormuz] Join URL:", url)
+            const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 1 })
+            document.getElementById('qr-img').src = dataUrl
+            document.getElementById('qr-overlay').style.display = 'flex'
+        })
+    </script>
 </body>
-</html>

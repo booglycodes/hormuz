@@ -1,0 +1,17 @@
+body {
+    background: #444444;
+}
+.canvas {
+    width: 185vh;
+    height: 95vh;
+    border-style: solid;
+    border-color: coral;
+    margin-left:-95vh;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+.center {
+    margin-left: 50vw;
+}
