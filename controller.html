@@ -32,20 +32,48 @@
     resize()
 
     // === Input state ===
-    // b0 = swipe up, b1 = swipe left, b2 = swipe right, b3 = swipe down
-    let input = { dx: 0, dy: 0, jump: false, b0: false, b1: false, b2: false, b3: false }
+    let input = { dx: 0, dy: 0, jump: false, b0: false, b1: false, b2: false, b3: false, b4: false }
     let joystickKnob = { x: 0, y: 0 }
     let joystickTouch = null
 
     // Gesture state
     const SWIPE_THRESHOLD = 30
-    const TAP_TIME = 200 // ms
-    const HOLD_TIME = 300 // ms
+    const TAP_TIME = 200
+    const HOLD_TIME = 300
     let gestureTouch = null
-    let gestureStart = null // { x, y, time }
+    let gestureStart = null
     let gestureTriggered = false
-    let lastGesture = null // for display: { type, time }
     let holdActive = false
+
+    // Floating gesture indicators
+    const floaters = [] // { text, x, y, born, color }
+    const FLOAT_DURATION = 800 // ms
+    const FLOAT_RISE = 60 // px total rise
+
+    function spawnFloater(type) {
+      const gCx = canvas.width * 0.75
+      const gCy = canvas.height * 0.5
+      const jitter = (Math.random() - 0.5) * 40
+
+      let text, color
+      switch (type) {
+        case "tap": text = "JUMP"; color = "#22c55e"; break
+        case "hold": text = "ATK 5"; color = "#a855f7"; break
+        case "up": text = "↑"; color = "#3b82f6"; break
+        case "down": text = "↓"; color = "#3b82f6"; break
+        case "left": text = "←"; color = "#3b82f6"; break
+        case "right": text = "→"; color = "#3b82f6"; break
+        default: text = type; color = "#3b82f6"
+      }
+
+      floaters.push({
+        text,
+        color,
+        x: gCx + jitter,
+        y: gCy + (Math.random() - 0.5) * 30,
+        born: performance.now()
+      })
+    }
 
     // === Touch handling ===
     function isLeftHalf(x) { return x < canvas.width / 2 }
@@ -75,13 +103,10 @@
           const dy = touch.clientY - gestureStart.y
           const dist = Math.hypot(dx, dy)
           if (dist > SWIPE_THRESHOLD) {
-            // Determine swipe direction
             if (Math.abs(dx) > Math.abs(dy)) {
-              if (dx > 0) triggerGesture("right")
-              else triggerGesture("left")
+              triggerGesture(dx > 0 ? "right" : "left")
             } else {
-              if (dy > 0) triggerGesture("down")
-              else triggerGesture("up")
+              triggerGesture(dy > 0 ? "down" : "up")
             }
             gestureTriggered = true
           }
@@ -104,8 +129,7 @@
           }
           gestureTouch = null
           gestureStart = null
-          holdActive = false
-          input.jump = false
+          if (holdActive) { input.b4 = false; holdActive = false }
         }
       }
     })
@@ -119,8 +143,7 @@
         } else if (touch.identifier === gestureTouch) {
           gestureTouch = null
           gestureStart = null
-          holdActive = false
-          input.jump = false
+          if (holdActive) { input.b4 = false; holdActive = false }
         }
       }
     })
@@ -139,10 +162,9 @@
     }
 
     function triggerGesture(type) {
-      lastGesture = { type, time: performance.now() }
+      spawnFloater(type)
 
       if (type === "tap") {
-        // Tap = jump (pulse)
         input.jump = true
         setTimeout(() => { input.jump = false }, 100)
       } else if (type === "up") {
@@ -160,14 +182,13 @@
       }
     }
 
-    // Check for hold gesture each frame
     function checkHold() {
       if (gestureTouch !== null && gestureStart && !gestureTriggered && !holdActive) {
         const elapsed = performance.now() - gestureStart.time
         if (elapsed > HOLD_TIME) {
           holdActive = true
-          input.jump = true
-          lastGesture = { type: "hold", time: performance.now() }
+          input.b4 = true
+          spawnFloater("hold")
         }
       }
     }
@@ -176,16 +197,15 @@
     let status = "Connecting..."
 
     function draw() {
-      resize() // keep responsive
       checkHold()
-
+      const now = performance.now()
       const w = canvas.width
       const h = canvas.height
 
       ctx.fillStyle = "#080b12"
       ctx.fillRect(0, 0, w, h)
 
-      // Divider line
+      // Divider
       ctx.strokeStyle = "#1e293b"
       ctx.lineWidth = 2
       ctx.beginPath()
@@ -197,14 +217,14 @@
       ctx.fillStyle = "#9ca3af"
       ctx.font = `${Math.round(h * 0.03)}px system-ui`
       ctx.textAlign = "center"
-      ctx.fillText(status, w / 2, h * 0.06)
+      ctx.textBaseline = "top"
+      ctx.fillText(status, w / 2, h * 0.03)
 
-      // === Left side: Joystick ===
+      // === Left: Joystick ===
       const jCx = w * 0.22
       const jCy = h * 0.5
       const jR = Math.min(w, h) * 0.18
 
-      // Base
       ctx.beginPath()
       ctx.arc(jCx, jCy, jR, 0, Math.PI * 2)
       ctx.fillStyle = "#1e293b"
@@ -213,7 +233,6 @@
       ctx.lineWidth = 2
       ctx.stroke()
 
-      // Knob
       const knobR = jR * 0.38
       const knobActive = joystickTouch !== null
       ctx.beginPath()
@@ -227,52 +246,43 @@
         ctx.shadowBlur = 0
       }
 
-      // Label
-      ctx.fillStyle = "#475569"
-      ctx.font = `${Math.round(h * 0.025)}px system-ui`
-      ctx.textAlign = "center"
-      ctx.fillText("MOVE", jCx, jCy + jR + h * 0.06)
-
-      // === Right side: Gesture area ===
+      // === Right: Gesture area hint ===
       const gCx = w * 0.75
       const gCy = h * 0.5
 
-      // Gesture indicators
-      const arrows = [
-        { dir: "up", label: "↑ ATK 1", y: -1, x: 0 },
-        { dir: "left", label: "← ATK 2", y: 0, x: -1 },
-        { dir: "right", label: "ATK 3 →", y: 0, x: 1 },
-        { dir: "down", label: "↓ ATK 4", y: 1, x: 0 },
-      ]
+      ctx.fillStyle = "#1e293b22"
+      ctx.beginPath()
+      ctx.arc(gCx, gCy, Math.min(w * 0.2, h * 0.35), 0, Math.PI * 2)
+      ctx.fill()
 
-      const spread = Math.min(w * 0.12, h * 0.18)
-      ctx.font = `${Math.round(h * 0.03)}px system-ui`
+      // Hint text (faint)
+      ctx.fillStyle = "#334155"
+      ctx.font = `${Math.round(h * 0.025)}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("swipe / tap", gCx, gCy + Math.min(w * 0.2, h * 0.35) + h * 0.04)
+
+      // === Floating gesture indicators ===
+      const fontSize = Math.round(h * 0.08)
+      ctx.font = `bold ${fontSize}px system-ui`
       ctx.textAlign = "center"
       ctx.textBaseline = "middle"
 
-      for (const a of arrows) {
-        const ax = gCx + a.x * spread
-        const ay = gCy + a.y * spread
-        const active = lastGesture && lastGesture.type === a.dir && (performance.now() - lastGesture.time < 300)
-        ctx.fillStyle = active ? "#3b82f6" : "#334155"
-        ctx.fillText(a.label, ax, ay)
+      for (let i = floaters.length - 1; i >= 0; i--) {
+        const f = floaters[i]
+        const age = now - f.born
+        if (age > FLOAT_DURATION) {
+          floaters.splice(i, 1)
+          continue
+        }
+        const t = age / FLOAT_DURATION // 0..1
+        const alpha = 1 - t
+        const rise = t * FLOAT_RISE
+        ctx.globalAlpha = alpha
+        ctx.fillStyle = f.color
+        ctx.fillText(f.text, f.x, f.y - rise)
+        ctx.globalAlpha = 1
       }
-
-      // Tap indicator (center)
-      const tapActive = lastGesture && lastGesture.type === "tap" && (performance.now() - lastGesture.time < 300)
-      const holdIndicator = holdActive
-      ctx.fillStyle = tapActive ? "#22c55e" : holdIndicator ? "#16a34a" : "#475569"
-      ctx.font = `bold ${Math.round(h * 0.035)}px system-ui`
-      ctx.fillText(holdIndicator ? "HOLDING" : "TAP = JUMP", gCx, gCy)
-
-      // Gesture area border hint
-      ctx.strokeStyle = "#1e293b"
-      ctx.lineWidth = 1
-      ctx.setLineDash([5, 5])
-      ctx.beginPath()
-      ctx.arc(gCx, gCy, spread * 1.6, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.setLineDash([])
 
       requestAnimationFrame(draw)
     }
@@ -298,9 +308,7 @@
       room.onPeerJoin(() => { status = "Connected ✓" })
       room.onPeerLeave(() => { status = "Host disconnected" })
 
-      setInterval(() => {
-        sendInput({ ...input })
-      }, 33)
+      setInterval(() => { sendInput({ ...input }) }, 33)
     }
   </script>
 </body>

@@ -9,7 +9,7 @@ class NetworkControl {
   constructor() {
     this._axes = new Vector2(0, 0)
     this._jump = false
-    this._buttons = [false, false, false, false]
+    this._buttons = [false, false, false, false, false]
   }
 
   // Called by network layer when input arrives from phone
@@ -20,7 +20,8 @@ class NetworkControl {
       !!data.b0,
       !!data.b1,
       !!data.b2,
-      !!data.b3
+      !!data.b3,
+      !!data.b4
     ]
   }
 
