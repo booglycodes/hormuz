@@ -164,28 +164,28 @@
       input.dy = dy / maxDist
     }
 
+    // Track which inputs need to be cleared after sending
+    let pendingClears = []
+
     function triggerGesture(type) {
       spawnFloater(type)
 
       if (type === "tap") {
         input.jump = true
+        pendingClears.push("jump")
       } else if (type === "up") {
         input.b0 = true
+        pendingClears.push("b0")
       } else if (type === "left") {
         input.b1 = true
+        pendingClears.push("b1")
       } else if (type === "right") {
         input.b2 = true
+        pendingClears.push("b2")
       } else if (type === "down") {
         input.b3 = true
+        pendingClears.push("b3")
       }
-      // Clear after next send (33ms)
-      setTimeout(() => {
-        if (type === "tap") input.jump = false
-        else if (type === "up") input.b0 = false
-        else if (type === "left") input.b1 = false
-        else if (type === "right") input.b2 = false
-        else if (type === "down") input.b3 = false
-      }, 34)
     }
 
     function checkHold() {
@@ -320,7 +320,14 @@
       room.onPeerJoin(() => { status = "Connected ✓" })
       room.onPeerLeave(() => { status = "Host disconnected" })
 
-      setInterval(() => { sendInput({ ...input }) }, 33)
+      setInterval(() => {
+        sendInput({ ...input })
+        // Clear one-shot gestures after they've been sent
+        for (const key of pendingClears) {
+          input[key] = false
+        }
+        pendingClears.length = 0
+      }, 33)
     }
   </script>
 </body>
