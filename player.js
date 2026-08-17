@@ -34,7 +34,7 @@ class Controller {
         if (this.controller.buttons()[0] && this.controller.buttons()[2]) {
             return 5;
         }
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < this.controller.buttons().length; i++) {
             if (this.controller.buttons()[i]) {
                 return i
             }
