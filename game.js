@@ -61,12 +61,12 @@ function connecthandler(player_control) {
 let map = null
 let map_names = ['default', 'weedopolis']
 let maps = {
-    default : new Map([
+    default : new GameMap([
         platform(1400, 1000, new Vector2(arena_width / 2, arena_height + 350)),
         platform_semisolid(300, 25, new Vector2(arena_width / 4, arena_height - 300)),
         platform_semisolid(300, 25, new Vector2(arena_width - arena_width / 4, arena_height - 300))
     ]),
-    weedopolis : new Map([
+    weedopolis : new GameMap([
         platform_semisolid(450, 25, new Vector2(arena_width / 2, arena_height - 200), 'purple'),
         platform_semisolid(300, 25, new Vector2(arena_width / 4, arena_height - 300), 'purple'),
         platform_semisolid(300, 25, new Vector2(arena_width - arena_width / 4, arena_height - 300), 'purple'),
