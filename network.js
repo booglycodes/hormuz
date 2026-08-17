@@ -42,10 +42,10 @@ const CHARACTER_MAPPINGS = {
     labels: { up: "TURRET", left: "GENERATOR", right: "DRONES", down: "SHOCK", hold: "TELEPORT" }
   },
   shrek: {
-    // up -> shrekgrab (0), left -> shrekstitution (3), right -> shrekstitution (3), down -> shrekdown (1), hold -> donkey (2)
-    b0: 0, b1: 3, b2: 3, b3: 1, b4: 2,
-    numAbilities: 4,
-    labels: { up: "GRAB", left: "SHREKSTITUTION", right: "SHREKSTITUTION", down: "SHREKDOWN", hold: "DONKEY" }
+    // up -> shrekgrab (2), left -> shrekstitution_left (3), right -> shrekstitution_right (4), down -> shrekdown (0), hold -> donkey (1)
+    b0: 2, b1: 3, b2: 4, b3: 0, b4: 1,
+    numAbilities: 5,
+    labels: { up: "GRAB", left: "SHREKSTITUTION ←", right: "SHREKSTITUTION →", down: "SHREKDOWN", hold: "DONKEY" }
   },
   monke: {
     // up -> grab (0)

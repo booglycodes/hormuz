@@ -109,6 +109,68 @@ function shrekstitution(player) {
     }
 }
 
+function shrekstitution_left(player) {
+    let closest_donkey = null
+    let shortest_dist = Infinity
+    for (let i = 0; i < all_objects.length; i++) {
+        if (!all_objects[i].tags.includes('donkey')) continue
+        if (all_objects[i].position.x < player.position.x) {
+            let dist = all_objects[i].position.sqr_dist(player.position)
+            if (dist < shortest_dist) {
+                closest_donkey = all_objects[i]
+                shortest_dist = dist
+            }
+        }
+    }
+    // Fallback to closest donkey in any direction
+    if (closest_donkey === null) {
+        for (let i = 0; i < all_objects.length; i++) {
+            if (!all_objects[i].tags.includes('donkey')) continue
+            let dist = all_objects[i].position.sqr_dist(player.position)
+            if (dist < shortest_dist) {
+                closest_donkey = all_objects[i]
+                shortest_dist = dist
+            }
+        }
+    }
+    if (closest_donkey !== null) {
+        let position = player.position
+        player.position = closest_donkey.position.add(new Vector2(0, 0))
+        closest_donkey.position = position.add(new Vector2(0, 0))
+    }
+}
+
+function shrekstitution_right(player) {
+    let closest_donkey = null
+    let shortest_dist = Infinity
+    for (let i = 0; i < all_objects.length; i++) {
+        if (!all_objects[i].tags.includes('donkey')) continue
+        if (all_objects[i].position.x > player.position.x) {
+            let dist = all_objects[i].position.sqr_dist(player.position)
+            if (dist < shortest_dist) {
+                closest_donkey = all_objects[i]
+                shortest_dist = dist
+            }
+        }
+    }
+    // Fallback to closest donkey in any direction
+    if (closest_donkey === null) {
+        for (let i = 0; i < all_objects.length; i++) {
+            if (!all_objects[i].tags.includes('donkey')) continue
+            let dist = all_objects[i].position.sqr_dist(player.position)
+            if (dist < shortest_dist) {
+                closest_donkey = all_objects[i]
+                shortest_dist = dist
+            }
+        }
+    }
+    if (closest_donkey !== null) {
+        let position = player.position
+        player.position = closest_donkey.position.add(new Vector2(0, 0))
+        closest_donkey.position = position.add(new Vector2(0, 0))
+    }
+}
+
 function arm_donkey(player, target) {
     if (target.tags.includes('donkey')) {
         target.components.timer.set_time(100)
@@ -123,7 +185,8 @@ function create_shrek(gamepad, position, ability_draw_location, skin_name) {
         new Ability(shrekdown, 'shrekdown', 500, true),
         new Ability(donkey, 'donkey', 300, true),
         shrek_grab_ability,
-        new Ability(shrekstitution, 'shrekstitution', 50, true)
+        new Ability(shrekstitution_left, 'shrekstitution ←', 50, true),
+        new Ability(shrekstitution_right, 'shrekstitution →', 50, true)
     ]
 
     return new GameObject(
