@@ -10,136 +10,255 @@
       width: 100%; height: 100%;
       overflow: hidden;
       background: #080b12;
-      font-family: system-ui, sans-serif;
-      color: white;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
     }
-
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px;
-    }
-
-    #status {
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 14px;
-      color: #9ca3af;
-    }
-
-    /* Joystick (left side) */
-    #joystick-area {
-      position: relative;
-      width: 160px;
-      height: 160px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
-      border: 2px solid #334155;
-      flex-shrink: 0;
-    }
-
-    #joystick-knob {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 60px; height: 60px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
-      box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
-    }
-
-    #joystick-knob.active {
-      box-shadow: 0 0 24px rgba(59, 130, 246, 0.8);
-    }
-
-    /* Buttons (right side) */
-    #buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 10px;
-      width: 160px;
-      height: 160px;
-      flex-shrink: 0;
-    }
-
-    .btn {
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: bold;
-      border: 2px solid #334155;
-      background: #1e293b;
-      color: #94a3b8;
-      transition: background 0.05s, box-shadow 0.05s;
-    }
-
-    .btn.active {
-      background: #2563eb;
-      border-color: #3b82f6;
-      color: white;
-      box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
-    }
-
-    /* Jump button (bottom center) */
-    #jump-area {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100px;
-      height: 50px;
-      border-radius: 25px;
-      background: #1e293b;
-      border: 2px solid #334155;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: #94a3b8;
-      font-weight: bold;
-    }
-
-    #jump-area.active {
-      background: #16a34a;
-      border-color: #22c55e;
-      color: white;
-      box-shadow: 0 0 16px rgba(34, 197, 94, 0.5);
-    }
+    canvas { display: block; width: 100%; height: 100%; }
   </style>
 </head>
 <body>
-
-  <div id="status">Connecting...</div>
-
-  <div id="joystick-area">
-    <div id="joystick-knob"></div>
-  </div>
-
-  <div id="jump-area">JUMP</div>
-
-  <div id="buttons">
-    <div class="btn" data-btn="0">1</div>
-    <div class="btn" data-btn="1">2</div>
-    <div class="btn" data-btn="2">3</div>
-    <div class="btn" data-btn="3">4</div>
-  </div>
+  <canvas id="c"></canvas>
 
   <script type="module">
+    const canvas = document.getElementById("c")
+    const ctx = canvas.getContext("2d")
+
+    function resize() {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    window.addEventListener("resize", resize)
+    resize()
+
+    // === Layout ===
+    function getLayout() {
+      const w = canvas.width
+      const h = canvas.height
+      const joystickR = Math.min(w, h) * 0.18
+      const joystickCenter = { x: w * 0.22, y: h * 0.55 }
+      const btnR = Math.min(w, h) * 0.09
+      const jumpR = Math.min(w, h) * 0.11
+
+      // 4 attack buttons in diamond on right side
+      const btnCenter = { x: w * 0.78, y: h * 0.55 }
+      const btnSpread = btnR * 1.6
+      const buttons = [
+        { x: btnCenter.x, y: btnCenter.y - btnSpread, label: "1" },       // top
+        { x: btnCenter.x - btnSpread, y: btnCenter.y, label: "2" },       // left
+        { x: btnCenter.x + btnSpread, y: btnCenter.y, label: "3" },       // right
+        { x: btnCenter.x, y: btnCenter.y + btnSpread, label: "4" },       // bottom
+      ]
+
+      // Jump button bottom center
+      const jump = { x: w * 0.5, y: h * 0.82, r: jumpR }
+
+      return { joystickCenter, joystickR, buttons, btnR, jump }
+    }
+
+    // === Input state ===
+    let input = { dx: 0, dy: 0, jump: false, b0: false, b1: false, b2: false, b3: false }
+    let joystickKnob = { x: 0, y: 0 } // offset from center
+    let joystickTouch = null
+    let jumpTouch = null
+    let btnTouches = {} // touchId -> btnIndex
+
+    // === Touch handling ===
+    function hitTest(tx, ty, layout) {
+      const { joystickCenter, joystickR, buttons, btnR, jump } = layout
+
+      // Joystick
+      if (Math.hypot(tx - joystickCenter.x, ty - joystickCenter.y) < joystickR * 1.5) {
+        return { type: "joystick" }
+      }
+
+      // Jump
+      if (Math.hypot(tx - jump.x, ty - jump.y) < jump.r * 1.3) {
+        return { type: "jump" }
+      }
+
+      // Buttons
+      for (let i = 0; i < buttons.length; i++) {
+        if (Math.hypot(tx - buttons[i].x, ty - buttons[i].y) < btnR * 1.3) {
+          return { type: "button", index: i }
+        }
+      }
+
+      return null
+    }
+
+    canvas.addEventListener("touchstart", e => {
+      e.preventDefault()
+      const layout = getLayout()
+      for (const touch of e.changedTouches) {
+        const hit = hitTest(touch.clientX, touch.clientY, layout)
+        if (!hit) continue
+        if (hit.type === "joystick" && joystickTouch === null) {
+          joystickTouch = touch.identifier
+          updateJoystick(touch.clientX, touch.clientY, layout)
+        } else if (hit.type === "jump") {
+          jumpTouch = touch.identifier
+          input.jump = true
+        } else if (hit.type === "button") {
+          btnTouches[touch.identifier] = hit.index
+          input[`b${hit.index}`] = true
+        }
+      }
+    }, { passive: false })
+
+    canvas.addEventListener("touchmove", e => {
+      e.preventDefault()
+      const layout = getLayout()
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === joystickTouch) {
+          updateJoystick(touch.clientX, touch.clientY, layout)
+        }
+      }
+    }, { passive: false })
+
+    canvas.addEventListener("touchend", e => {
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === joystickTouch) {
+          joystickTouch = null
+          joystickKnob = { x: 0, y: 0 }
+          input.dx = 0; input.dy = 0
+        } else if (touch.identifier === jumpTouch) {
+          jumpTouch = null
+          input.jump = false
+        } else if (touch.identifier in btnTouches) {
+          const idx = btnTouches[touch.identifier]
+          input[`b${idx}`] = false
+          delete btnTouches[touch.identifier]
+        }
+      }
+    })
+
+    canvas.addEventListener("touchcancel", e => {
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === joystickTouch) {
+          joystickTouch = null
+          joystickKnob = { x: 0, y: 0 }
+          input.dx = 0; input.dy = 0
+        } else if (touch.identifier === jumpTouch) {
+          jumpTouch = null
+          input.jump = false
+        } else if (touch.identifier in btnTouches) {
+          const idx = btnTouches[touch.identifier]
+          input[`b${idx}`] = false
+          delete btnTouches[touch.identifier]
+        }
+      }
+    })
+
+    function updateJoystick(cx, cy, layout) {
+      const { joystickCenter, joystickR } = layout
+      let dx = cx - joystickCenter.x
+      let dy = cy - joystickCenter.y
+      const dist = Math.hypot(dx, dy)
+      const maxDist = joystickR * 0.7
+      if (dist > maxDist) {
+        dx = (dx / dist) * maxDist
+        dy = (dy / dist) * maxDist
+      }
+      joystickKnob = { x: dx, y: dy }
+      input.dx = dx / maxDist
+      input.dy = dy / maxDist
+    }
+
+    // === Rendering ===
+    let status = "Connecting..."
+
+    function draw() {
+      const layout = getLayout()
+      const { joystickCenter, joystickR, buttons, btnR, jump } = layout
+
+      ctx.fillStyle = "#080b12"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // Status
+      ctx.fillStyle = "#9ca3af"
+      ctx.font = `${Math.round(canvas.height * 0.035)}px system-ui`
+      ctx.textAlign = "center"
+      ctx.fillText(status, canvas.width / 2, canvas.height * 0.08)
+
+      // Joystick base
+      ctx.beginPath()
+      ctx.arc(joystickCenter.x, joystickCenter.y, joystickR, 0, Math.PI * 2)
+      ctx.fillStyle = "#1e293b"
+      ctx.fill()
+      ctx.strokeStyle = "#334155"
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      // Joystick knob
+      const knobR = joystickR * 0.38
+      ctx.beginPath()
+      ctx.arc(joystickCenter.x + joystickKnob.x, joystickCenter.y + joystickKnob.y, knobR, 0, Math.PI * 2)
+      const knobActive = joystickTouch !== null
+      ctx.fillStyle = knobActive ? "#3b82f6" : "#1d4ed8"
+      ctx.fill()
+      if (knobActive) {
+        ctx.shadowColor = "#3b82f6"
+        ctx.shadowBlur = 20
+        ctx.fill()
+        ctx.shadowBlur = 0
+      }
+
+      // Attack buttons
+      for (let i = 0; i < buttons.length; i++) {
+        const b = buttons[i]
+        const active = input[`b${i}`]
+        ctx.beginPath()
+        ctx.arc(b.x, b.y, btnR, 0, Math.PI * 2)
+        ctx.fillStyle = active ? "#2563eb" : "#1e293b"
+        ctx.fill()
+        ctx.strokeStyle = active ? "#3b82f6" : "#334155"
+        ctx.lineWidth = 2
+        ctx.stroke()
+        if (active) {
+          ctx.shadowColor = "#3b82f6"
+          ctx.shadowBlur = 16
+          ctx.fill()
+          ctx.shadowBlur = 0
+        }
+        ctx.fillStyle = active ? "white" : "#94a3b8"
+        ctx.font = `bold ${Math.round(btnR * 0.6)}px system-ui`
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(b.label, b.x, b.y)
+      }
+
+      // Jump button
+      const jumpActive = input.jump
+      ctx.beginPath()
+      ctx.arc(jump.x, jump.y, jump.r, 0, Math.PI * 2)
+      ctx.fillStyle = jumpActive ? "#16a34a" : "#1e293b"
+      ctx.fill()
+      ctx.strokeStyle = jumpActive ? "#22c55e" : "#334155"
+      ctx.lineWidth = 2
+      ctx.stroke()
+      if (jumpActive) {
+        ctx.shadowColor = "#22c55e"
+        ctx.shadowBlur = 16
+        ctx.fill()
+        ctx.shadowBlur = 0
+      }
+      ctx.fillStyle = jumpActive ? "white" : "#94a3b8"
+      ctx.font = `bold ${Math.round(jump.r * 0.4)}px system-ui`
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("JUMP", jump.x, jump.y)
+
+      requestAnimationFrame(draw)
+    }
+    requestAnimationFrame(draw)
+
+    // === Networking ===
     const params = new URLSearchParams(window.location.search)
     const roomName = params.get("room")
-    const status = document.getElementById("status")
 
     if (!roomName) {
-      status.textContent = "No room specified. Scan QR code to join."
+      status = "No room. Scan QR to join."
     } else {
       startController(roomName)
     }
@@ -151,74 +270,10 @@
       const [sendInput, _receiveInput] = room.makeAction("input")
       _receiveInput(() => {})
 
-      room.onPeerJoin(() => { status.textContent = "Connected ✓" })
-      room.onPeerLeave(() => { status.textContent = "Host disconnected" })
+      room.onPeerJoin(() => { status = "Connected ✓" })
+      room.onPeerLeave(() => { status = "Host disconnected" })
 
-      // === Input state ===
-      let input = { dx: 0, dy: 0, jump: false, b0: false, b1: false, b2: false, b3: false }
-
-      // === Joystick ===
-      const joystickArea = document.getElementById("joystick-area")
-      const knob = document.getElementById("joystick-knob")
-      const maxDist = 55
-      let joystickTouch = null
-
-      function updateJoystick(cx, cy) {
-        const rect = joystickArea.getBoundingClientRect()
-        let dx = cx - (rect.left + rect.width / 2)
-        let dy = cy - (rect.top + rect.height / 2)
-        const dist = Math.hypot(dx, dy)
-        if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist }
-        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`
-        knob.classList.add("active")
-        input.dx = dx / maxDist
-        input.dy = dy / maxDist
-      }
-
-      function resetJoystick() {
-        knob.style.transform = "translate(-50%, -50%)"
-        knob.classList.remove("active")
-        input.dx = 0
-        input.dy = 0
-        joystickTouch = null
-      }
-
-      joystickArea.addEventListener("touchstart", e => {
-        e.preventDefault()
-        joystickTouch = e.changedTouches[0].identifier
-        updateJoystick(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
-      }, { passive: false })
-
-      joystickArea.addEventListener("touchmove", e => {
-        e.preventDefault()
-        for (const t of e.changedTouches) {
-          if (t.identifier === joystickTouch) { updateJoystick(t.clientX, t.clientY); break }
-        }
-      }, { passive: false })
-
-      joystickArea.addEventListener("touchend", e => {
-        for (const t of e.changedTouches) {
-          if (t.identifier === joystickTouch) { resetJoystick(); break }
-        }
-      })
-      joystickArea.addEventListener("touchcancel", resetJoystick)
-
-      // === Jump button ===
-      const jumpArea = document.getElementById("jump-area")
-      jumpArea.addEventListener("touchstart", e => { e.preventDefault(); input.jump = true; jumpArea.classList.add("active") }, { passive: false })
-      jumpArea.addEventListener("touchend", e => { input.jump = false; jumpArea.classList.remove("active") })
-      jumpArea.addEventListener("touchcancel", () => { input.jump = false; jumpArea.classList.remove("active") })
-
-      // === Attack buttons ===
-      const btns = document.querySelectorAll(".btn")
-      btns.forEach(btn => {
-        const idx = btn.dataset.btn
-        btn.addEventListener("touchstart", e => { e.preventDefault(); input[`b${idx}`] = true; btn.classList.add("active") }, { passive: false })
-        btn.addEventListener("touchend", () => { input[`b${idx}`] = false; btn.classList.remove("active") })
-        btn.addEventListener("touchcancel", () => { input[`b${idx}`] = false; btn.classList.remove("active") })
-      })
-
-      // === Send input at 30Hz ===
+      // Send input at 30Hz
       setInterval(() => {
         sendInput({ ...input })
       }, 33)
