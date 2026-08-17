@@ -41,7 +41,7 @@ class NetworkControl {
 let room = null
 let sendState = null
 let receiveInput = null
-const networkControls = new Map() // peerId -> NetworkControl
+const networkControls = {} // peerId -> NetworkControl
 const peerOrder = [] // track join order for spawn positions
 
 function getQRUrl(roomName) {
@@ -60,7 +60,7 @@ async function hostGame(onPlayerJoin, onPlayerLeave) {
   receiveInput = _receiveInput
 
   receiveInput((data, peerId) => {
-    const ctrl = networkControls.get(peerId)
+    const ctrl = networkControls[peerId]
     if (ctrl) {
       ctrl.updateInput(data)
     }
@@ -69,14 +69,14 @@ async function hostGame(onPlayerJoin, onPlayerLeave) {
   room.onPeerJoin(peerId => {
     console.log("[network] peer joined:", peerId)
     const ctrl = new NetworkControl()
-    networkControls.set(peerId, ctrl)
+    networkControls[peerId] = ctrl
     peerOrder.push(peerId)
     if (onPlayerJoin) onPlayerJoin(peerId, ctrl)
   })
 
   room.onPeerLeave(peerId => {
     console.log("[network] peer left:", peerId)
-    networkControls.delete(peerId)
+    networkControls[peerId] = undefined
     const idx = peerOrder.indexOf(peerId)
     if (idx >= 0) peerOrder.splice(idx, 1)
     if (onPlayerLeave) onPlayerLeave(peerId)
